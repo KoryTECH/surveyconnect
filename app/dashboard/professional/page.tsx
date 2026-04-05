@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ProfessionalDashboard() {
@@ -89,9 +90,12 @@ export default function ProfessionalDashboard() {
               </p>
             </div>
           </div>
-          <button className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+          <Link
+            href="/verification"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+          >
             Verify Now
-          </button>
+          </Link>
         </div>
 
         {/* Stats */}
