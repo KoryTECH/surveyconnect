@@ -31,3 +31,11 @@ body {
     text-wrap: balance;
   }
 }
+
+input, select, textarea {
+  color: #111827 !important;
+}
+
+input::placeholder {
+  color: #9ca3af !important;
+}
