@@ -67,6 +67,7 @@ export default function ProfessionalDashboard() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
+
         {/* Welcome */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900">
@@ -120,20 +121,31 @@ export default function ProfessionalDashboard() {
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button className="p-4 border-2 border-dashed border-gray-200 rounded-xl text-left hover:border-green-400 hover:bg-green-50 transition-all">
+
+            {/* Browse Jobs — now a Link */}
+            <Link
+              href="/jobs"
+              className="p-4 border-2 border-dashed border-gray-200 rounded-xl text-left hover:border-green-400 hover:bg-green-50 transition-all block"
+            >
               <div className="text-2xl mb-2">🔍</div>
               <div className="font-semibold text-gray-900">Browse Jobs</div>
               <div className="text-sm text-gray-500 mt-1">
                 Find geospatial projects matching your skills
               </div>
-            </button>
-            <button className="p-4 border-2 border-dashed border-gray-200 rounded-xl text-left hover:border-green-400 hover:bg-green-50 transition-all">
+            </Link>
+
+            {/* Update Profile */}
+            <Link
+              href="/profile"
+              className="p-4 border-2 border-dashed border-gray-200 rounded-xl text-left hover:border-green-400 hover:bg-green-50 transition-all block"
+            >
               <div className="text-2xl mb-2">👤</div>
               <div className="font-semibold text-gray-900">Update Profile</div>
               <div className="text-sm text-gray-500 mt-1">
                 Add your skills and portfolio
               </div>
-            </button>
+            </Link>
+
           </div>
         </div>
       </div>
