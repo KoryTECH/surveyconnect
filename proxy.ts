@@ -33,7 +33,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // If no user and trying to access protected routes
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&
@@ -45,13 +44,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user exists redirect away from auth pages
   if (
     user &&
     (request.nextUrl.pathname.startsWith('/login') ||
       request.nextUrl.pathname.startsWith('/signup'))
   ) {
-    // Get user role from profiles
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -71,7 +68,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Protect dashboard routes
   if (request.nextUrl.pathname.startsWith('/dashboard/client')) {
     const { data: profile } = await supabase
       .from('profiles')
