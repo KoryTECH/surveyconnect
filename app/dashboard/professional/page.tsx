@@ -132,7 +132,7 @@ export default function ProfessionalDashboard() {
           </div>
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
             <p className="text-gray-500 dark:text-gray-400 text-sm">Total Earned</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">₦0</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">$0</p>
           </div>
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
             <p className="text-gray-500 dark:text-gray-400 text-sm">Average Rating</p>
