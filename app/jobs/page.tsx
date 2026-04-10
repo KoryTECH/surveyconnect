@@ -107,27 +107,27 @@ export default function JobsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading jobs...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-gray-500 dark:text-gray-400">Loading jobs...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
       {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">
+      <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
           Survey<span className="text-green-600">Connect</span>
         </h1>
         <div className="flex items-center gap-4">
           <Link
             href={profile?.role === 'client' ? '/dashboard/client' : '/dashboard/professional'}
-            className="text-sm text-gray-600 hover:text-gray-900"
+            className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
           >
             Dashboard
           </Link>
-          <span className="text-gray-600 text-sm">{profile?.full_name}</span>
+          <span className="text-gray-600 dark:text-gray-300 text-sm">{profile?.full_name}</span>
         </div>
       </nav>
 
@@ -135,14 +135,14 @@ export default function JobsPage() {
 
         {/* Header */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">Browse Jobs</h2>
-          <p className="text-gray-500 mt-1">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Browse Jobs</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             {filteredJobs.length} open job{filteredJobs.length !== 1 ? 's' : ''} available
           </p>
         </div>
 
         {/* Search + Filters */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
             {/* Search */}
@@ -152,7 +152,7 @@ export default function JobsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search jobs..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
               />
             </div>
 
@@ -161,7 +161,7 @@ export default function JobsPage() {
               <select
                 value={filterProfession}
                 onChange={(e) => setFilterProfession(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
               >
                 <option value="">All Professions</option>
                 <option value="land_surveyor">Land Surveyor</option>
@@ -186,12 +186,12 @@ export default function JobsPage() {
               <select
                 value={filterBudget}
                 onChange={(e) => setFilterBudget(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
               >
                 <option value="">Any Budget</option>
-                <option value="under500">Under $500</option>
-                <option value="500to2000">$500 - $2,000</option>
-                <option value="above2000">Above $2,000</option>
+                <option value="under500">Under ₦500</option>
+                <option value="500to2000">₦500 - ₦2,000</option>
+                <option value="above2000">Above ₦2,000</option>
               </select>
             </div>
 
@@ -206,19 +206,19 @@ export default function JobsPage() {
                 onChange={(e) => setFilterRemote(e.target.checked)}
                 className="w-4 h-4 text-green-600 rounded"
               />
-              <span className="text-sm text-gray-700">Remote jobs only</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Remote jobs only</span>
             </label>
           </div>
         </div>
 
         {/* Jobs List */}
         {filteredJobs.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="text-4xl mb-4">🔍</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               No jobs found
             </h3>
-            <p className="text-gray-500">
+            <p className="text-gray-500 dark:text-gray-400">
               Try adjusting your search or filters
             </p>
           </div>
@@ -227,40 +227,40 @@ export default function JobsPage() {
             {filteredJobs.map((job) => (
               <div
                 key={job.id}
-                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:border-green-300 hover:shadow-md transition-all"
+                className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
 
                     {/* Title + Badges */}
                     <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                         {job.title}
                       </h3>
                       {job.is_remote && (
-                        <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 rounded-full">
+                        <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium px-2 py-1 rounded-full">
                           Remote
                         </span>
                       )}
                       {job.required_verification && (
-                        <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-full">
+                        <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-2 py-1 rounded-full">
                           ✓ Verified only
                         </span>
                       )}
                     </div>
 
                     {/* Profession */}
-                    <p className="text-green-600 text-sm font-medium mb-2">
+                    <p className="text-green-600 dark:text-green-400 text-sm font-medium mb-2">
                       {getProfessionLabel(job.profession_type)}
                     </p>
 
                     {/* Description */}
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
                       {job.description}
                     </p>
 
                     {/* Meta */}
-                    <div className="flex items-center gap-4 text-xs text-gray-400 flex-wrap">
+                    <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 flex-wrap">
                       {(job.location_city || job.location_country) && (
                         <span>
                           📍 {[job.location_city, job.location_country].filter(Boolean).join(', ')}
@@ -276,10 +276,10 @@ export default function JobsPage() {
 
                   {/* Budget + Apply */}
                   <div className="text-right shrink-0">
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
                       {formatBudget(job.budget, job.budget_type)}
                     </p>
-                    <p className="text-xs text-gray-400 mb-3">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
                       {job.budget_type === 'hourly' ? 'per hour' : 'fixed price'}
                     </p>
                     {profile?.role === 'professional' && (
@@ -291,7 +291,7 @@ export default function JobsPage() {
                       </Link>
                     )}
                     {profile?.role === 'client' && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
                         {job.applications_count || 0} applicant(s)
                       </span>
                     )}

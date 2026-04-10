@@ -12,6 +12,7 @@ export default function PostJobPage() {
   const [pageLoading, setPageLoading] = useState(true)
   const [error, setError] = useState('')
   const [user, setUser] = useState<any>(null)
+  const [customCountry, setCustomCountry] = useState('')
 
   const [formData, setFormData] = useState({
     title: '',
@@ -67,6 +68,8 @@ export default function PostJobPage() {
     if (!formData.budget) { setError('Budget is required'); return }
     if (parseFloat(formData.budget) < 1) { setError('Budget must be greater than 0'); return }
 
+    const finalCountry = formData.location_country === 'Other' ? customCountry : formData.location_country
+
     setLoading(true)
 
     try {
@@ -79,7 +82,7 @@ export default function PostJobPage() {
           profession_type: formData.profession_type,
           budget: parseFloat(formData.budget),
           budget_type: formData.budget_type,
-          location_country: formData.location_country,
+          location_country: finalCountry,
           location_city: formData.location_city,
           is_remote: formData.is_remote,
           deadline: formData.deadline || null,
@@ -100,28 +103,28 @@ export default function PostJobPage() {
 
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-12 px-4 transition-colors duration-300">
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Survey<span className="text-green-600">Connect</span>
           </h1>
-          <p className="text-gray-500 mt-2">Post a New Job</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Post a New Job</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-8 border border-transparent dark:border-gray-800">
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-6 text-sm">
               {error}
             </div>
           )}
@@ -130,7 +133,7 @@ export default function PostJobPage() {
 
             {/* Job Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Job Title <span className="text-red-500">*</span>
               </label>
               <input
@@ -139,13 +142,13 @@ export default function PostJobPage() {
                 value={formData.title}
                 onChange={handleChange}
                 placeholder="e.g. Land Survey for 50 Hectare Farm in Ogun State"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Job Description <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -154,20 +157,20 @@ export default function PostJobPage() {
                 onChange={handleChange}
                 rows={5}
                 placeholder="Describe the project in detail. Include scope, deliverables, timeline expectations, and any special requirements..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 resize-none"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 resize-none"
               />
             </div>
 
             {/* Profession Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Profession Needed <span className="text-red-500">*</span>
               </label>
               <select
                 name="profession_type"
                 value={formData.profession_type}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
               >
                 <option value="">Select profession type</option>
                 <option value="land_surveyor">Land Surveyor</option>
@@ -191,8 +194,8 @@ export default function PostJobPage() {
             {/* Budget */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Budget (USD) <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Budget <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -201,18 +204,18 @@ export default function PostJobPage() {
                   onChange={handleChange}
                   placeholder="e.g. 500"
                   min="1"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Budget Type
                 </label>
                 <select
                   name="budget_type"
                   value={formData.budget_type}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
                 >
                   <option value="fixed">Fixed Price</option>
                   <option value="hourly">Hourly Rate</option>
@@ -223,14 +226,14 @@ export default function PostJobPage() {
             {/* Location */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Country
                 </label>
                 <select
                   name="location_country"
                   value={formData.location_country}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
                 >
                   <option value="">Select country</option>
                   <option value="Nigeria">Nigeria</option>
@@ -245,9 +248,20 @@ export default function PostJobPage() {
                   <option value="United States">United States</option>
                   <option value="Other">Other</option>
                 </select>
+
+                {/* Custom country input when Other is selected */}
+                {formData.location_country === 'Other' && (
+                  <input
+                    type="text"
+                    value={customCountry}
+                    onChange={(e) => setCustomCountry(e.target.value)}
+                    placeholder="Enter your country"
+                    className="w-full mt-2 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
+                  />
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   City
                 </label>
                 <input
@@ -256,14 +270,14 @@ export default function PostJobPage() {
                   value={formData.location_city}
                   onChange={handleChange}
                   placeholder="e.g. Lagos"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
                 />
               </div>
             </div>
 
             {/* Deadline */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Application Deadline
               </label>
               <input
@@ -271,7 +285,7 @@ export default function PostJobPage() {
                 name="deadline"
                 value={formData.deadline}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
               />
             </div>
 
@@ -285,7 +299,7 @@ export default function PostJobPage() {
                   onChange={handleChange}
                   className="w-4 h-4 text-green-600 rounded"
                 />
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-gray-700 dark:text-gray-300">
                   This job can be done remotely
                 </span>
               </label>
@@ -298,7 +312,7 @@ export default function PostJobPage() {
                   onChange={handleChange}
                   className="w-4 h-4 text-green-600 rounded"
                 />
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-gray-700 dark:text-gray-300">
                   Require verified professionals only (recommended)
                 </span>
               </label>
@@ -315,7 +329,7 @@ export default function PostJobPage() {
 
           </form>
 
-          <p className="text-center text-sm text-gray-500 mt-6">
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
             <Link href="/dashboard/client" className="text-green-600 hover:underline">
               ← Back to Dashboard
             </Link>
