@@ -189,9 +189,9 @@ export default function JobsPage() {
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
               >
                 <option value="">Any Budget</option>
-                <option value="under500">Under ₦500</option>
-                <option value="500to2000">₦500 - ₦2,000</option>
-                <option value="above2000">Above ₦2,000</option>
+                <option value="under500">Under $500</option>
+                <option value="500to2000">$500 - $2,000</option>
+                <option value="above2000">Above $2,000</option>
               </select>
             </div>
 
