@@ -124,7 +124,7 @@ export default function ClientDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link
               href="/jobs/post"
               className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
@@ -136,13 +136,27 @@ export default function ClientDashboard() {
               </div>
             </Link>
 
-            <button className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all">
+            <Link
+              href="/dashboard/client/jobs"
+              className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
+            >
+              <div className="text-2xl mb-2">📁</div>
+              <div className="font-semibold text-gray-900 dark:text-white">My Jobs</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                View applications for your posted jobs
+              </div>
+            </Link>
+
+            <Link
+              href="/professionals"
+              className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
+            >
               <div className="text-2xl mb-2">🔍</div>
               <div className="font-semibold text-gray-900 dark:text-white">Browse Professionals</div>
               <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Search verified geospatial experts
               </div>
-            </button>
+            </Link>
           </div>
         </div>
       </div>
