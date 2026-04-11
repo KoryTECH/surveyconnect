@@ -64,7 +64,7 @@ export default function ApplyPage() {
       setJob(jobData);
 
       const { data: existing } = await supabase
-        .from("applications")
+        .from("job_applications")
         .select("id")
         .eq("job_id", id)
         .eq("professional_id", user.id)
@@ -90,7 +90,7 @@ export default function ApplyPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
 
-    const { error: insertError } = await supabase.from("applications").insert({
+    const { error: insertError } = await supabase.from("job_applications").insert({
       job_id: id,
       professional_id: user.id,
       cover_letter: coverLetter.trim(),
