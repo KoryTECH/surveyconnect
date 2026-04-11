@@ -22,13 +22,8 @@ export default function ProfessionalDashboard() {
 
   useEffect(() => {
     const getProfile = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       const { data } = await supabase
         .from("profiles")
         .select("*")
@@ -55,14 +50,15 @@ export default function ProfessionalDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-      {/* Navbar */}
       <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-          Survey<span className="text-green-600">Connect</span>
-        </h1>
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="SurveyConnect" className="h-8 w-auto" />
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            Survey<span className="text-green-600">Connect</span>
+          </h1>
+        </div>
 
         <div className="flex items-center gap-3">
-          {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
             className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm"
@@ -71,7 +67,6 @@ export default function ProfessionalDashboard() {
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
 
-          {/* Avatar */}
           <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
             <span className="text-green-700 dark:text-green-300 text-sm font-bold">
               {getInitials(profile?.full_name || "")}
@@ -91,9 +86,7 @@ export default function ProfessionalDashboard() {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Welcome */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
             Welcome back, {profile?.full_name?.split(" ")[0]}! 👋
@@ -103,7 +96,6 @@ export default function ProfessionalDashboard() {
           </p>
         </div>
 
-        {/* Verification Banner */}
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-2xl p-4 mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-2xl">⚠️</span>
@@ -124,7 +116,6 @@ export default function ProfessionalDashboard() {
           </Link>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
             <p className="text-gray-500 dark:text-gray-400 text-sm">Jobs Completed</p>
@@ -140,12 +131,11 @@ export default function ProfessionalDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link
               href="/jobs"
               className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
@@ -154,6 +144,17 @@ export default function ProfessionalDashboard() {
               <div className="font-semibold text-gray-900 dark:text-white">Browse Jobs</div>
               <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Find geospatial projects matching your skills
+              </div>
+            </Link>
+
+            <Link
+              href="/dashboard/professional/applications"
+              className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
+            >
+              <div className="text-2xl mb-2">📋</div>
+              <div className="font-semibold text-gray-900 dark:text-white">My Applications</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Track jobs you have applied to
               </div>
             </Link>
 
