@@ -22,13 +22,8 @@ export default function ClientDashboard() {
 
   useEffect(() => {
     const getProfile = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       const { data } = await supabase
         .from("profiles")
         .select("*")
@@ -55,14 +50,15 @@ export default function ClientDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-      {/* Navbar */}
       <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-          Survey<span className="text-green-600">Connect</span>
-        </h1>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="SurveyConnect" className="h-8 w-auto" onError={(e) => (e.currentTarget.style.display = 'none')} />
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            Survey<span className="text-green-600">Connect</span>
+          </h1>
+        </div>
 
         <div className="flex items-center gap-3">
-          {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
             className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm"
@@ -71,7 +67,6 @@ export default function ClientDashboard() {
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
 
-          {/* Avatar */}
           <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
             <span className="text-green-700 dark:text-green-300 text-sm font-bold">
               {getInitials(profile?.full_name || "")}
@@ -91,9 +86,7 @@ export default function ClientDashboard() {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Welcome */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
             Welcome back, {profile?.full_name?.split(" ")[0]}! 👋
@@ -103,7 +96,6 @@ export default function ClientDashboard() {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
             <p className="text-gray-500 dark:text-gray-400 text-sm">Active Projects</p>
@@ -119,7 +111,6 @@ export default function ClientDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Quick Actions

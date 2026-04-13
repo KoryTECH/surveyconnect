@@ -17,6 +17,7 @@ export default function ProfessionalDashboard() {
   const router = useRouter();
   const supabase = createClient();
   const [profile, setProfile] = useState<any>(null);
+  const [profProfile, setProfProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { theme, toggleTheme } = useTheme();
 
@@ -24,12 +25,21 @@ export default function ProfessionalDashboard() {
     const getProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
+
       const { data } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
+
+      const { data: prof } = await supabase
+        .from("professional_profiles")
+        .select("verification_status")
+        .eq("id", user.id)
+        .single();
+
       setProfile(data);
+      setProfProfile(prof);
       setLoading(false);
     };
     getProfile();
@@ -51,8 +61,8 @@ export default function ProfessionalDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
       <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="SurveyConnect" className="h-8 w-auto" />
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="SurveyConnect" className="h-8 w-auto" onError={(e) => (e.currentTarget.style.display = 'none')} />
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">
             Survey<span className="text-green-600">Connect</span>
           </h1>
@@ -96,25 +106,38 @@ export default function ProfessionalDashboard() {
           </p>
         </div>
 
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-2xl p-4 mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">⚠️</span>
-            <div>
-              <p className="font-semibold text-yellow-800 dark:text-yellow-300">
-                Complete your verification
-              </p>
-              <p className="text-sm text-yellow-700 dark:text-yellow-400">
-                Upload your ID and license to apply for jobs
-              </p>
+        {/* Verification Banner — only shows if not verified */}
+        {profProfile?.verification_status !== "verified" && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-2xl p-4 mb-8 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="font-semibold text-yellow-800 dark:text-yellow-300">
+                  Complete your verification
+                </p>
+                <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                  Upload your ID and license to apply for jobs
+                </p>
+              </div>
             </div>
+            <Link
+              href="/verification"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+            >
+              Verify Now
+            </Link>
           </div>
-          <Link
-            href="/verification"
-            className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-          >
-            Verify Now
-          </Link>
-        </div>
+        )}
+
+        {/* Verified Badge */}
+        {profProfile?.verification_status === "verified" && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-2xl p-4 mb-8 flex items-center gap-3">
+            <span className="text-2xl">✅</span>
+            <p className="font-semibold text-green-800 dark:text-green-300">
+              Your account is verified — you can apply to jobs
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
