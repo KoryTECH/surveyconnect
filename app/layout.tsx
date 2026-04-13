@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "SurveyConnect",
   description: "Marketplace for geospatial professionals",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({

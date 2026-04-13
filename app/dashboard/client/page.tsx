@@ -52,7 +52,7 @@ export default function ClientDashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
       <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="SurveyConnect" className="h-8 w-auto" onError={(e) => (e.currentTarget.style.display = 'none')} />
+          <img src="/logo.png" alt="SurveyConnect" className="h-10 w-auto" onError={(e) => (e.currentTarget.style.display = 'none')} />
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">
             Survey<span className="text-green-600">Connect</span>
           </h1>
