@@ -53,51 +53,54 @@ export default function JobApplicationsPage() {
     setAccepting(applicationId);
 
     try {
+      // Accept this application
       await supabase
         .from("job_applications")
         .update({ status: "accepted" })
         .eq("id", applicationId);
 
+      // Reject all others
       await supabase
         .from("job_applications")
         .update({ status: "rejected" })
         .eq("job_id", jobId)
         .neq("id", applicationId);
 
+      // Update job status
       await supabase
         .from("jobs")
         .update({ status: "in_progress" })
         .eq("id", jobId);
 
+      // Create contract with correct status "pending"
       const acceptedApp = applications.find((a) => a.id === applicationId);
-      await supabase.from("contracts").insert({
-        job_id: jobId,
-        client_id: job.client_id,
-        professional_id: professionalId,
-        application_id: applicationId,
-        agreed_budget: acceptedApp?.proposed_rate,
-        platform_fee: acceptedApp?.proposed_rate * 0.15,
-        professional_receives: acceptedApp?.proposed_rate * 0.85,
-        status: "pending_payment",
-      });
+      const { data: contract, error: contractError } = await supabase
+        .from("contracts")
+        .insert({
+          job_id: jobId,
+          client_id: job.client_id,
+          professional_id: professionalId,
+          application_id: applicationId,
+          agreed_budget: acceptedApp?.proposed_rate,
+          platform_fee: acceptedApp?.proposed_rate * 0.15,
+          professional_receives: acceptedApp?.proposed_rate * 0.85,
+          escrow_amount: acceptedApp?.proposed_rate,
+          status: "pending",
+        })
+        .select()
+        .single();
 
-      const { data: updated } = await supabase
-        .from("job_applications")
-        .select(`
-          *,
-          profiles!job_applications_professional_id_fkey (
-            full_name,
-            country,
-            email
-          )
-        `)
-        .eq("job_id", jobId)
-        .order("created_at", { ascending: false });
+      if (contractError || !contract) {
+        console.error("Contract creation failed:", contractError);
+        setAccepting(null);
+        return;
+      }
 
-      setApplications(updated || []);
+      // Redirect to payment page
+      router.push(`/payments/${contract.id}`);
+
     } catch (err) {
       console.error(err);
-    } finally {
       setAccepting(null);
     }
   };
@@ -224,7 +227,7 @@ export default function JobApplicationsPage() {
                           disabled={accepting === app.id}
                           className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
                         >
-                          {accepting === app.id ? "Accepting..." : "Accept"}
+                          {accepting === app.id ? "Creating contract..." : "Accept & Pay"}
                         </button>
                         <button
                           onClick={() => handleReject(app.id)}
