@@ -128,7 +128,7 @@ export default function JobApplicationsPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{job?.title}</h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm">{job?.description}</p>
           <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 dark:text-gray-500">
-            <span>💰 ₦{job?.budget} {job?.budget_type}</span>
+            <span>💰 ${job?.budget} {job?.budget_type}</span>
             <span>📍 {[job?.location_city, job?.location_country].filter(Boolean).join(", ")}</span>
             <span>👥 {applications.length} application{applications.length !== 1 ? "s" : ""}</span>
           </div>
@@ -194,7 +194,7 @@ export default function JobApplicationsPage() {
                   <div className="text-right shrink-0 space-y-3">
                     <div>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        ₦{app.proposed_rate}
+                        ${app.proposed_rate}
                       </p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">proposed rate</p>
                     </div>
