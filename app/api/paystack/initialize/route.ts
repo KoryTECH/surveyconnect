@@ -36,6 +36,10 @@ export async function POST(request: NextRequest) {
     // Amount in kobo (Paystack uses smallest currency unit)
     const amountInKobo = Math.round(Number(contract.agreed_budget) * 100)
 
+    // Use request origin as fallback so it works on any deployment
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
+      `${request.nextUrl.protocol}//${request.nextUrl.host}`
+
     const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
@@ -47,7 +51,7 @@ export async function POST(request: NextRequest) {
         amount: amountInKobo,
         currency: 'NGN',
         reference: `sc_${contractId}_${Date.now()}`,
-        callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/paystack/verify`,
+        callback_url: `${appUrl}/api/paystack/verify`,
         metadata: {
           contractId,
           clientId: user.id,
