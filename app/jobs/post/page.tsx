@@ -92,7 +92,7 @@ export default function PostJobPage() {
 
       if (jobError) throw jobError
 
-      router.push('/dashboard/client?posted=true')
+      router.push('/dashboard/client/jobs')
 
     } catch (err: any) {
       setError(err.message || 'Failed to post job. Please try again.')
@@ -113,7 +113,6 @@ export default function PostJobPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-12 px-4 transition-colors duration-300">
       <div className="max-w-2xl mx-auto">
 
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Survey<span className="text-green-600">Connect</span>
@@ -131,7 +130,6 @@ export default function PostJobPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
 
-            {/* Job Title */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Job Title <span className="text-red-500">*</span>
@@ -146,7 +144,6 @@ export default function PostJobPage() {
               />
             </div>
 
-            {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Job Description <span className="text-red-500">*</span>
@@ -161,7 +158,6 @@ export default function PostJobPage() {
               />
             </div>
 
-            {/* Profession Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Profession Needed <span className="text-red-500">*</span>
@@ -191,21 +187,24 @@ export default function PostJobPage() {
               </select>
             </div>
 
-            {/* Budget */}
+            {/* Budget — with $ prefix */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Budget <span className="text-red-500">*</span>
+                  Budget (USD) <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number"
-                  name="budget"
-                  value={formData.budget}
-                  onChange={handleChange}
-                  placeholder="e.g. 500"
-                  min="1"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
-                />
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium">$</span>
+                  <input
+                    type="number"
+                    name="budget"
+                    value={formData.budget}
+                    onChange={handleChange}
+                    placeholder="e.g. 500"
+                    min="1"
+                    className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -223,7 +222,6 @@ export default function PostJobPage() {
               </div>
             </div>
 
-            {/* Location */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -248,8 +246,6 @@ export default function PostJobPage() {
                   <option value="United States">United States</option>
                   <option value="Other">Other</option>
                 </select>
-
-                {/* Custom country input when Other is selected */}
                 {formData.location_country === 'Other' && (
                   <input
                     type="text"
@@ -275,7 +271,6 @@ export default function PostJobPage() {
               </div>
             </div>
 
-            {/* Deadline */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Application Deadline
@@ -289,7 +284,6 @@ export default function PostJobPage() {
               />
             </div>
 
-            {/* Checkboxes */}
             <div className="space-y-3">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -303,7 +297,6 @@ export default function PostJobPage() {
                   This job can be done remotely
                 </span>
               </label>
-
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -318,7 +311,6 @@ export default function PostJobPage() {
               </label>
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}

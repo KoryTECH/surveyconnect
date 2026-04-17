@@ -23,6 +23,8 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState('')
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null)
+  const [ngnAmount, setNgnAmount] = useState<number | null>(null)
 
   useEffect(() => {
     fetchContract()
@@ -69,6 +71,10 @@ export default function PaymentPage() {
         return
       }
 
+      // Store exchange rate info for display
+      setExchangeRate(data.exchangeRate)
+      setNgnAmount(data.ngnAmount)
+
       window.location.href = data.authorizationUrl
 
     } catch (err) {
@@ -77,22 +83,27 @@ export default function PaymentPage() {
     }
   }
 
+  const agreedBudget = Number(contract?.agreed_budget)
+  const clientFee = agreedBudget * 0.08
+  const clientTotal = agreedBudget + clientFee
+  const professionalReceives = agreedBudget * 0.93
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-center">
           <p className="text-red-500 text-lg">{error}</p>
           <button
             onClick={() => router.push('/dashboard/client')}
-            className="mt-4 text-blue-600 hover:underline"
+            className="mt-4 text-green-600 hover:underline"
           >
             Back to Dashboard
           </button>
@@ -102,13 +113,13 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg w-full max-w-md p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4 transition-colors duration-300">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg w-full max-w-md p-8 border border-gray-100 dark:border-gray-800">
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
@@ -119,7 +130,7 @@ export default function PaymentPage() {
         </div>
 
         {/* Job Details */}
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-6">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-6">
           <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Job</p>
           <p className="font-semibold text-gray-900 dark:text-white">{contract?.jobs?.title}</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -132,27 +143,39 @@ export default function PaymentPage() {
           <div className="flex justify-between text-sm">
             <span className="text-gray-600 dark:text-gray-400">Agreed Budget</span>
             <span className="font-medium text-gray-900 dark:text-white">
-              ₦{Number(contract?.agreed_budget).toLocaleString()}
+              ${agreedBudget.toLocaleString()}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Platform Fee (15%)</span>
+            <span className="text-gray-600 dark:text-gray-400">Service Fee (8%)</span>
             <span className="font-medium text-gray-900 dark:text-white">
-              ₦{Number(contract?.platform_fee).toLocaleString()}
+              +${clientFee.toFixed(2)}
             </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-600 dark:text-gray-400">Professional Receives</span>
             <span className="font-medium text-green-600">
-              ₦{Number(contract?.professional_receives).toLocaleString()}
+              ${professionalReceives.toFixed(2)}
             </span>
           </div>
-          <div className="border-t border-gray-200 dark:border-gray-600 pt-3 flex justify-between">
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex justify-between">
             <span className="font-bold text-gray-900 dark:text-white">Total to Pay</span>
-            <span className="font-bold text-xl text-blue-600">
-              ₦{Number(contract?.agreed_budget).toLocaleString()}
-            </span>
+            <div className="text-right">
+              <p className="font-bold text-xl text-green-600">
+                ${clientTotal.toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                paid in NGN at checkout
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* Commission info */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
+          <p className="text-xs text-blue-700 dark:text-blue-400 text-center">
+            ℹ️ 8% service fee from client + 7% from professional = 15% platform commission
+          </p>
         </div>
 
         {/* Escrow Notice */}
@@ -173,7 +196,7 @@ export default function PaymentPage() {
         <button
           onClick={handlePayment}
           disabled={paying}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
         >
           {paying ? (
             <>
@@ -185,7 +208,7 @@ export default function PaymentPage() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
-              Pay ₦{Number(contract?.agreed_budget).toLocaleString()} Now
+              Pay ${clientTotal.toFixed(2)} Now
             </>
           )}
         </button>
