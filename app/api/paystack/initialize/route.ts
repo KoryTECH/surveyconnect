@@ -33,11 +33,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
     }
 
-    // Amount in kobo (Paystack uses smallest currency unit)
-    const amountInKobo = Math.round(Number(contract.agreed_budget) * 100)
+    // Fetch live USD to NGN exchange rate
+    let usdToNgn = 1600 // fallback rate if API fails
+    try {
+      const rateResponse = await fetch(
+        `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/latest/USD`
+      )
+      const rateData = await rateResponse.json()
+      if (rateData.result === 'success') {
+        usdToNgn = rateData.conversion_rates.NGN
+      }
+    } catch (rateError) {
+      console.error('Exchange rate fetch failed, using fallback:', rateError)
+    }
 
-    // Use request origin as fallback so it works on any deployment
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
+    // Convert USD to NGN then to kobo (Paystack uses smallest currency unit)
+    const amountInUsd = Number(contract.agreed_budget)
+    const amountInNgn = amountInUsd * usdToNgn
+    const amountInKobo = Math.round(amountInNgn * 100)
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ||
       `${request.nextUrl.protocol}//${request.nextUrl.host}`
 
     const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -56,6 +71,8 @@ export async function POST(request: NextRequest) {
           contractId,
           clientId: user.id,
           jobTitle: contract.jobs?.title,
+          usdAmount: amountInUsd,
+          exchangeRate: usdToNgn,
         },
       }),
     })
@@ -75,6 +92,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       authorizationUrl: paystackData.data.authorization_url,
       reference: paystackData.data.reference,
+      usdAmount: amountInUsd,
+      ngnAmount: Math.round(amountInNgn),
+      exchangeRate: usdToNgn,
     })
 
   } catch (error) {
