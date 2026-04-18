@@ -7,8 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function ProfessionalProfilePage() {
   const router = useRouter()
-  const { id } = useParams()
-  const supabase = createClient()
+  const params = useParams()
+const id = params.id as string
 
   const [prof, setProf] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -45,6 +45,7 @@ export default function ProfessionalProfilePage() {
 
   useEffect(() => {
     const getData = async () => {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
@@ -62,11 +63,16 @@ export default function ProfessionalProfilePage() {
         .eq('id', id)
         .single()
 
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('full_name, country, email')
         .eq('id', id)
         .single()
+
+      console.log('ID:', id)
+      console.log('Profile data:', profileData)
+      console.log('Profile error:', profileError)
+      console.log('Prof data:', profData)
 
       setProf(profData)
       setProfile(profileData)
@@ -83,7 +89,7 @@ export default function ProfessionalProfilePage() {
     )
   }
 
-  if (!prof || !profile) {
+  if (!profile) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center">
@@ -107,7 +113,6 @@ export default function ProfessionalProfilePage() {
 
       <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">
 
-        {/* Profile Card */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-100 dark:border-gray-800">
           <div className="flex items-start gap-6">
             <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center shrink-0">
@@ -126,58 +131,64 @@ export default function ProfessionalProfilePage() {
                   </span>
                 )}
               </div>
-              <p className="text-green-600 dark:text-green-400 font-medium mb-1">
-                {getProfessionLabel(prof?.profession_type)}
-              </p>
+              {prof?.profession_type && (
+                <p className="text-green-600 dark:text-green-400 font-medium mb-1">
+                  {getProfessionLabel(prof?.profession_type)}
+                </p>
+              )}
               <p className="text-gray-500 dark:text-gray-400 text-sm">
-                📍 {profile?.country}
+                📍 {profile?.country || 'Location not specified'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Details */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Professional Details</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {prof?.years_experience > 0 && (
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Experience</p>
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  {prof.years_experience} year{prof.years_experience !== 1 ? 's' : ''}
-                </p>
-              </div>
-            )}
-
-            {prof?.license_number && (
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">License Number</p>
-                <p className="font-semibold text-gray-900 dark:text-white">{prof.license_number}</p>
-              </div>
-            )}
-
-            {prof?.profession_type && (
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Profession</p>
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  {getProfessionLabel(prof.profession_type)}
-                </p>
-              </div>
-            )}
-
-            {prof?.secondary_profession && (
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Secondary Profession</p>
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  {getProfessionLabel(prof.secondary_profession)}
-                </p>
-              </div>
-            )}
+        {prof && (
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Professional Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {prof?.years_experience > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Experience</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {prof.years_experience} year{prof.years_experience !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              )}
+              {prof?.license_number && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">License Number</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">{prof.license_number}</p>
+                </div>
+              )}
+              {prof?.profession_type && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Profession</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {getProfessionLabel(prof.profession_type)}
+                  </p>
+                </div>
+              )}
+              {prof?.secondary_profession && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Secondary Profession</p>
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {getProfessionLabel(prof.secondary_profession)}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Action — only clients see this */}
+        {!prof && (
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800">
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              This professional hasn't completed their profile yet.
+            </p>
+          </div>
+        )}
+
         {viewerRole === 'client' && (
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Hire this Professional</h3>
