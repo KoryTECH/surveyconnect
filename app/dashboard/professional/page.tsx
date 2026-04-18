@@ -15,7 +15,6 @@ function getInitials(name: string) {
 
 export default function ProfessionalDashboard() {
   const router = useRouter();
-  const supabase = createClient();
   const [profile, setProfile] = useState<any>(null);
   const [profProfile, setProfProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +22,7 @@ export default function ProfessionalDashboard() {
 
   useEffect(() => {
     const getProfile = async () => {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
@@ -46,6 +46,7 @@ export default function ProfessionalDashboard() {
   }, []);
 
   const handleLogout = async () => {
+    const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");
   };
@@ -106,7 +107,6 @@ export default function ProfessionalDashboard() {
           </p>
         </div>
 
-        {/* Verification Banner — only shows if not verified */}
         {profProfile?.verification_status !== "verified" && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-2xl p-4 mb-8 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -129,7 +129,6 @@ export default function ProfessionalDashboard() {
           </div>
         )}
 
-        {/* Verified Badge */}
         {profProfile?.verification_status === "verified" && (
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-2xl p-4 mb-8 flex items-center gap-3">
             <span className="text-2xl">✅</span>
@@ -158,7 +157,7 @@ export default function ProfessionalDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link
               href="/jobs"
               className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
@@ -178,6 +177,17 @@ export default function ProfessionalDashboard() {
               <div className="font-semibold text-gray-900 dark:text-white">My Applications</div>
               <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Track jobs you have applied to
+              </div>
+            </Link>
+
+            <Link
+              href="/dashboard/professional/contracts"
+              className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
+            >
+              <div className="text-2xl mb-2">📄</div>
+              <div className="font-semibold text-gray-900 dark:text-white">My Contracts</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                View active contracts and mark jobs complete
               </div>
             </Link>
 
