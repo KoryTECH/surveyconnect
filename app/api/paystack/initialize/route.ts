@@ -80,8 +80,11 @@ export async function POST(request: NextRequest) {
     const paystackData = await paystackResponse.json()
 
     if (!paystackData.status) {
-      return NextResponse.json({ error: 'Failed to initialize payment' }, { status: 500 })
-    }
+  console.error('Paystack error:', JSON.stringify(paystackData))
+  return NextResponse.json({ 
+    error: paystackData.message || 'Failed to initialize payment' 
+  }, { status: 500 })
+}
 
     // Store the payment reference in contract
     await supabase
