@@ -1,107 +1,91 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (!user) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { contractId } = await request.json()
+    const body = await request.json()
+    const { amount, email, contractId, metadata } = body
 
-    if (!contractId) {
-      return NextResponse.json({ error: 'Contract ID required' }, { status: 400 })
+    if (!amount || !email || !contractId) {
+      return NextResponse.json({ error: 'Missing required fields: amount, email, contractId' }, { status: 400 })
     }
 
-    // Fetch contract details
-    const { data: contract, error: contractError } = await supabase
-      .from('contracts')
-      .select(`
-        *,
-        jobs(title),
-        profiles!contracts_client_id_fkey(email)
-      `)
-      .eq('id', contractId)
-      .eq('client_id', user.id)
-      .eq('status', 'pending')
-      .single()
-
-    if (contractError || !contract) {
-      return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
+    const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
+    if (!paystackSecretKey) {
+      console.error('PAYSTACK_SECRET_KEY is not set in environment variables')
+      return NextResponse.json({ error: 'Payment service not configured' }, { status: 500 })
     }
 
-    // Fetch live USD to NGN exchange rate
-    let usdToNgn = 1600 // fallback rate if API fails
-    try {
-      const rateResponse = await fetch(
-        `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/latest/USD`
-      )
-      const rateData = await rateResponse.json()
-      if (rateData.result === 'success') {
-        usdToNgn = rateData.conversion_rates.NGN
-      }
-    } catch (rateError) {
-      console.error('Exchange rate fetch failed, using fallback:', rateError)
+    const paystackPayload = {
+      amount: Math.round(amount * 100), // Convert to kobo
+      email,
+      reference: `SC-${contractId}-${Date.now()}`,
+      metadata: {
+        contractId,
+        userId: user.id,
+        ...metadata,
+      },
+      callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/callback`,
     }
 
-    // Convert USD to NGN then to kobo (Paystack uses smallest currency unit)
-    const amountInUsd = Number(contract.agreed_budget) * 1.08
-    const amountInNgn = amountInUsd * usdToNgn
-    const amountInKobo = Math.round(amountInNgn * 100)
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ||
-      `${request.nextUrl.protocol}//${request.nextUrl.host}`
+    console.log('Initializing Paystack payment:', JSON.stringify({
+      ...paystackPayload,
+      // Don't log sensitive data but log structure
+      amount: paystackPayload.amount,
+      email: paystackPayload.email,
+      reference: paystackPayload.reference,
+    }))
 
     const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        Authorization: `Bearer ${paystackSecretKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        email: user.email,
-        amount: amountInKobo,
-        currency: 'NGN',
-        reference: `sc_${contractId}_${Date.now()}`,
-        callback_url: `${appUrl}/api/paystack/verify`,
-        metadata: {
-          contractId,
-          clientId: user.id,
-          jobTitle: contract.jobs?.title,
-          usdAmount: amountInUsd,
-          exchangeRate: usdToNgn,
-        },
-      }),
+      body: JSON.stringify(paystackPayload),
     })
 
     const paystackData = await paystackResponse.json()
 
+    // ✅ THIS IS THE KEY FIX — surface the actual Paystack error
     if (!paystackData.status) {
-  console.error('Paystack error:', JSON.stringify(paystackData))
-  return NextResponse.json({ 
-    error: paystackData.message || 'Failed to initialize payment' 
-  }, { status: 500 })
-}
+      console.error('Paystack initialization failed:', JSON.stringify({
+        httpStatus: paystackResponse.status,
+        httpStatusText: paystackResponse.statusText,
+        paystackStatus: paystackData.status,
+        paystackMessage: paystackData.message,
+        fullResponse: paystackData,
+      }))
+      return NextResponse.json({
+        error: paystackData.message || 'Failed to initialize payment',
+        debug: {
+          paystackMessage: paystackData.message,
+          paystackStatus: paystackData.status,
+          httpStatus: paystackResponse.status,
+        }
+      }, { status: 500 })
+    }
 
-    // Store the payment reference in contract
-    await supabase
-      .from('contracts')
-      .update({ stripe_payment_intent_id: paystackData.data.reference })
-      .eq('id', contractId)
+    console.log('Paystack initialization successful, reference:', paystackData.data?.reference)
 
     return NextResponse.json({
-      authorizationUrl: paystackData.data.authorization_url,
+      authorization_url: paystackData.data.authorization_url,
+      access_code: paystackData.data.access_code,
       reference: paystackData.data.reference,
-      usdAmount: amountInUsd,
-      ngnAmount: Math.round(amountInNgn),
-      exchangeRate: usdToNgn,
     })
 
   } catch (error) {
-    console.error('Payment initialization error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Unexpected error in payment initialization:', error)
+    return NextResponse.json({
+      error: 'Internal server error',
+      debug: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
