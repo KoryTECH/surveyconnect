@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert USD to NGN then to kobo (Paystack uses smallest currency unit)
-    const amountInUsd = Number(contract.agreed_budget)
+    const amountInUsd = Number(contract.agreed_budget) * 1.08
     const amountInNgn = amountInUsd * usdToNgn
     const amountInKobo = Math.round(amountInNgn * 100)
 
