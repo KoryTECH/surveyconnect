@@ -84,6 +84,11 @@ export default function ApplyPage() {
       return;
     }
 
+    if (parseFloat(proposedRate) <= 0) {
+      setError("Please enter a valid rate.");
+      return;
+    }
+
     setSubmitting(true);
     setError("");
 
@@ -108,6 +113,13 @@ export default function ApplyPage() {
     setSuccess(true);
     setTimeout(() => router.push("/jobs"), 2000);
   };
+
+  const professionalReceives = proposedRate
+    ? (parseFloat(proposedRate) * 0.93).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : "0.00";
 
   if (loading) {
     return (
@@ -188,6 +200,7 @@ export default function ApplyPage() {
                 placeholder="Introduce yourself. Why are you the best fit for this job? What's your relevant experience?"
                 value={coverLetter}
                 onChange={(e) => setCoverLetter(e.target.value)}
+                maxLength={1000}
                 className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
               />
               <p className="text-xs text-gray-400 dark:text-gray-500">{coverLetter.length} / 1000 characters</p>
@@ -196,7 +209,7 @@ export default function ApplyPage() {
             {/* Proposed Rate */}
             <div className="space-y-2">
               <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                Your Rate ($) <span className="text-red-400">*</span>
+                What are you expecting to be paid? ($) <span className="text-red-400">*</span>
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
@@ -204,14 +217,20 @@ export default function ApplyPage() {
                   type="number"
                   placeholder="0.00"
                   value={proposedRate}
+                  min="1"
                   onChange={(e) => setProposedRate(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-"].includes(e.key)) {
+                      e.preventDefault()
+                    }
+                  }}
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-8 pr-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
                 />
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                Platform takes 15% commission. You&apos;ll receive{" "}
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  ${proposedRate ? (parseFloat(proposedRate) * 0.85).toLocaleString() : "0"}
+                SurveyConnect takes 7% commission. You&apos;ll receive{" "}
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  ${professionalReceives}
                 </span>
               </p>
             </div>
