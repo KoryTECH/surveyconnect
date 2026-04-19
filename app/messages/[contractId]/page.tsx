@@ -17,7 +17,8 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel>
@@ -59,7 +60,6 @@ export default function MessagesPage() {
       setMessages(messagesData || [])
       setLoading(false)
 
-      // ✅ Fix: assign channel outside async so cleanup can reach it
       channel = supabase
         .channel(`messages:${contractId}`)
         .on(
@@ -82,12 +82,13 @@ export default function MessagesPage() {
             }
           }
         )
-        .subscribe()
+        .subscribe((status) => {
+          console.log('Realtime subscription status:', status)
+        })
     }
 
     init()
 
-    // ✅ Fix: cleanup now actually runs because channel is in outer scope
     return () => {
       if (channel) supabase.removeChannel(channel)
     }
@@ -157,7 +158,6 @@ export default function MessagesPage() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-      {/* Header */}
       <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Link
@@ -181,7 +181,6 @@ export default function MessagesPage() {
         </span>
       </nav>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center text-gray-400 dark:text-gray-500 mt-12">
@@ -229,7 +228,6 @@ export default function MessagesPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input — ✅ Fix: added text-gray-900 dark:text-white */}
       <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-6 py-4 shrink-0">
         <div className="flex items-end gap-3">
           <textarea
