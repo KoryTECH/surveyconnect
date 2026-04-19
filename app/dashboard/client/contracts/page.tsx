@@ -184,19 +184,35 @@ export default function ClientContractsPage() {
                     </div>
 
                     {contract.status === 'active' && (
-                      <span className="block bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
-                        Work in Progress
-                      </span>
+                      <div className="space-y-2">
+                        <Link
+                          href={`/messages/${contract.id}`}
+                          className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-center"
+                        >
+                          💬 Message
+                        </Link>
+                        <span className="block bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
+                          Work in Progress
+                        </span>
+                      </div>
                     )}
 
                     {contract.status === 'completed' && (
-                      <button
-                        onClick={() => handleReleasePayment(contract.id)}
-                        disabled={releasing === contract.id}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-                      >
-                        {releasing === contract.id ? 'Releasing...' : '💸 Release Payment'}
-                      </button>
+                      <div className="space-y-2">
+                        <Link
+                          href={`/messages/${contract.id}`}
+                          className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-center"
+                        >
+                          💬 Message
+                        </Link>
+                        <button
+                          onClick={() => handleReleasePayment(contract.id)}
+                          disabled={releasing === contract.id}
+                          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+                        >
+                          {releasing === contract.id ? 'Releasing...' : '💸 Release Payment'}
+                        </button>
+                      </div>
                     )}
 
                     {contract.status === 'paid' && (

@@ -147,19 +147,35 @@ export default function ProfessionalContractsPage() {
                     </div>
 
                     {contract.status === 'active' && (
-                      <button
-                        onClick={() => handleMarkComplete(contract.id)}
-                        disabled={completing === contract.id}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-                      >
-                        {completing === contract.id ? 'Marking...' : 'Mark as Complete'}
-                      </button>
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => handleMarkComplete(contract.id)}
+                          disabled={completing === contract.id}
+                          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+                        >
+                          {completing === contract.id ? 'Marking...' : 'Mark as Complete'}
+                        </button>
+                        <Link
+                          href={`/messages/${contract.id}`}
+                          className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-center"
+                        >
+                          💬 Message
+                        </Link>
+                      </div>
                     )}
 
                     {contract.status === 'completed' && (
-                      <span className="block bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
-                        Awaiting Payment Release
-                      </span>
+                      <div className="space-y-2">
+                        <Link
+                          href={`/messages/${contract.id}`}
+                          className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-center"
+                        >
+                          💬 Message
+                        </Link>
+                        <span className="block bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
+                          Awaiting Payment Release
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>
