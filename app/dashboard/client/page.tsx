@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -17,26 +17,85 @@ export default function ClientDashboard() {
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { theme, toggleTheme } = useTheme();
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   useEffect(() => {
     const getProfile = async () => {
-      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
+
       const { data } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
+
       setProfile(data);
       setLoading(false);
+
+      // Fetch unread messages count
+      const fetchUnread = async () => {
+        const { data: contracts } = await supabase
+          .from("contracts")
+          .select("id")
+          .eq("client_id", user.id)
+          .eq("status", "active")
+
+        if (!contracts || contracts.length === 0) return
+
+        const contractIds = contracts.map(c => c.id)
+
+        const { count } = await supabase
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .in("contract_id", contractIds)
+          .neq("sender_id", user.id)
+          .is("read_at", null)
+
+        setUnreadCount(count || 0)
+      }
+
+      fetchUnread()
+
+      // Realtime: listen for new messages across all active contracts
+      const { data: contracts } = await supabase
+        .from("contracts")
+        .select("id")
+        .eq("client_id", user.id)
+        .eq("status", "active")
+
+      if (contracts && contracts.length > 0) {
+        const channel = supabase
+          .channel("client-unread-messages")
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+            },
+            (payload) => {
+              const msg = payload.new as any
+              const isMyContract = contracts.some(c => c.id === msg.contract_id)
+              const isFromOther = msg.sender_id !== user.id
+              if (isMyContract && isFromOther) {
+                setUnreadCount(prev => prev + 1)
+              }
+            }
+          )
+          .subscribe()
+
+        return () => { supabase.removeChannel(channel) }
+      }
     };
+
     getProfile();
   }, []);
 
   const handleLogout = async () => {
-    const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");
   };
@@ -141,8 +200,13 @@ export default function ClientDashboard() {
 
             <Link
               href="/dashboard/client/contracts"
-              className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
+              className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block relative"
             >
+              {unreadCount > 0 && (
+                <span className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
               <div className="text-2xl mb-2">📄</div>
               <div className="font-semibold text-gray-900 dark:text-white">My Contracts</div>
               <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
