@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         exchangeRate,
         ngnAmount,
       },
-      callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/callback`,
+      callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/payments/callback`,
     }
 
     console.log('Initializing Paystack payment:', {
