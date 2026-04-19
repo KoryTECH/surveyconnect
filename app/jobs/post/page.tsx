@@ -67,6 +67,10 @@ export default function PostJobPage() {
     if (!formData.profession_type) { setError('Please select a profession type'); return }
     if (!formData.budget) { setError('Budget is required'); return }
     if (parseFloat(formData.budget) < 1) { setError('Budget must be greater than 0'); return }
+    if (parseFloat(formData.budget) > 30000) {
+      setError('Budget cannot exceed $30,000. For larger contracts, please contact us at support@surveyconnect.com to arrange payment.')
+      return
+    }
 
     const finalCountry = formData.location_country === 'Other' ? customCountry : formData.location_country
 
@@ -187,7 +191,7 @@ export default function PostJobPage() {
               </select>
             </div>
 
-            {/* Budget — with $ prefix */}
+            {/* Budget */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -202,9 +206,13 @@ export default function PostJobPage() {
                     onChange={handleChange}
                     placeholder="e.g. 500"
                     min="1"
+                    max="30000"
                     className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
                   />
                 </div>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Maximum $30,000. For larger contracts, contact support.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
