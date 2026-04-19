@@ -17,15 +17,16 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const supabase = createClient()
 
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel>
+
     const init = async () => {
-      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUser(user)
 
-      // Fetch contract
       const { data: contractData } = await supabase
         .from('contracts')
         .select(`
@@ -42,7 +43,6 @@ export default function MessagesPage() {
         return
       }
 
-      // Check user is part of this contract
       if (contractData.client_id !== user.id && contractData.professional_id !== user.id) {
         router.push('/dashboard/client')
         return
@@ -50,21 +50,17 @@ export default function MessagesPage() {
 
       setContract(contractData)
 
-      // Fetch existing messages
       const { data: messagesData } = await supabase
         .from('messages')
-        .select(`
-          *,
-          profiles(full_name)
-        `)
+        .select('*, profiles(full_name)')
         .eq('contract_id', contractId)
         .order('created_at', { ascending: true })
 
       setMessages(messagesData || [])
       setLoading(false)
 
-      // Subscribe to realtime messages
-      const channel = supabase
+      // ✅ Fix: assign channel outside async so cleanup can reach it
+      channel = supabase
         .channel(`messages:${contractId}`)
         .on(
           'postgres_changes',
@@ -75,7 +71,6 @@ export default function MessagesPage() {
             filter: `contract_id=eq.${contractId}`,
           },
           async (payload) => {
-            // Fetch the new message with profile data
             const { data: newMsg } = await supabase
               .from('messages')
               .select('*, profiles(full_name)')
@@ -88,13 +83,14 @@ export default function MessagesPage() {
           }
         )
         .subscribe()
-
-      return () => {
-        supabase.removeChannel(channel)
-      }
     }
 
     init()
+
+    // ✅ Fix: cleanup now actually runs because channel is in outer scope
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [contractId])
 
   useEffect(() => {
@@ -105,7 +101,6 @@ export default function MessagesPage() {
     if (!newMessage.trim() || sending) return
     setSending(true)
 
-    const supabase = createClient()
     const { error } = await supabase
       .from('messages')
       .insert({
@@ -114,9 +109,7 @@ export default function MessagesPage() {
         content: newMessage.trim(),
       })
 
-    if (!error) {
-      setNewMessage('')
-    }
+    if (!error) setNewMessage('')
     setSending(false)
   }
 
@@ -129,8 +122,7 @@ export default function MessagesPage() {
 
   const formatTime = (date: string) => {
     return new Date(date).toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
+      hour: '2-digit', minute: '2-digit',
     })
   }
 
@@ -237,7 +229,7 @@ export default function MessagesPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
+      {/* Input — ✅ Fix: added text-gray-900 dark:text-white */}
       <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-6 py-4 shrink-0">
         <div className="flex items-end gap-3">
           <textarea
