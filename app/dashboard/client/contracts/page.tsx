@@ -220,12 +220,9 @@ export default function ClientContractsPage() {
 
 										{contract.status === "completed" && (
 											<div className="space-y-2">
-												<Link
-													href={`/messages/${contract.id}`}
-													className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-center"
-												>
-													💬 Message
-												</Link>
+												<span className="block w-full bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 text-sm font-semibold px-4 py-2 rounded-xl text-center cursor-not-allowed">
+													💬 Message (Disabled)
+												</span>
 												<button
 													onClick={() => handleReleasePayment(contract.id)}
 													disabled={releasing === contract.id}
