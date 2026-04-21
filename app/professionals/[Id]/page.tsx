@@ -8,12 +8,13 @@ import { createClient } from '@/lib/supabase/client'
 export default function ProfessionalProfilePage() {
   const router = useRouter()
   const params = useParams()
-const id = params.id as string
+  const id = params.id as string
 
   const [prof, setProf] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [viewerRole, setViewerRole] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
 
   const getProfessionLabel = (type: string) => {
     const labels: any = {
@@ -57,22 +58,24 @@ const id = params.id as string
 
       setViewerRole(viewerProfile?.role || '')
 
+      // Use maybeSingle() instead of single() to avoid errors on no rows
       const { data: profData } = await supabase
         .from('professional_profiles')
         .select('*')
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('full_name, country, email')
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
-      console.log('ID:', id)
-      console.log('Profile data:', profileData)
-      console.log('Profile error:', profileError)
-      console.log('Prof data:', profData)
+      if (!profileData) {
+        setNotFound(true)
+        setLoading(false)
+        return
+      }
 
       setProf(profData)
       setProfile(profileData)
@@ -89,7 +92,7 @@ const id = params.id as string
     )
   }
 
-  if (!profile) {
+  if (notFound) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center">
@@ -104,7 +107,7 @@ const id = params.id as string
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
       <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-          Survey<span className="text-green-600">Connect</span>
+          Survey<span className="text-green-600">ConnectHub</span>
         </h1>
         <Link href="/professionals" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
           ← Back to Professionals
@@ -125,9 +128,13 @@ const id = params.id as string
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {profile?.full_name}
                 </h2>
-                {prof?.verification_status === 'verified' && (
+                {prof?.verification_status === 'verified' ? (
                   <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-3 py-1 rounded-full">
                     ✓ Verified
+                  </span>
+                ) : (
+                  <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs font-medium px-3 py-1 rounded-full">
+                    ⏳ Unverified
                   </span>
                 )}
               </div>

@@ -28,6 +28,7 @@ export default function ProfessionalsPage() {
 
       setProfile(profileData)
 
+      // Removed .eq('verification_status', 'verified') — show all professionals
       const { data } = await supabase
         .from('professional_profiles')
         .select(`
@@ -38,7 +39,6 @@ export default function ProfessionalsPage() {
             email
           )
         `)
-        .eq('verification_status', 'verified')
         .order('created_at', { ascending: false })
 
       setProfessionals(data || [])
@@ -93,10 +93,9 @@ export default function ProfessionalsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-      {/* Navbar */}
       <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-          Survey<span className="text-green-600">Connect</span>
+          Survey<span className="text-green-600">ConnectHub</span>
         </h1>
         <Link
           href={profile?.role === 'client' ? '/dashboard/client' : '/dashboard/professional'}
@@ -108,15 +107,13 @@ export default function ProfessionalsPage() {
 
       <div className="max-w-6xl mx-auto px-6 py-8">
 
-        {/* Header */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Browse Professionals</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            {filtered.length} verified professional{filtered.length !== 1 ? 's' : ''} available
+            {filtered.length} professional{filtered.length !== 1 ? 's' : ''} available
           </p>
         </div>
 
-        {/* Filters */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
@@ -150,7 +147,6 @@ export default function ProfessionalsPage() {
           </div>
         </div>
 
-        {/* Professionals List */}
         {filtered.length === 0 ? (
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-100 dark:border-gray-800">
             <div className="text-4xl mb-4">👥</div>
@@ -164,7 +160,6 @@ export default function ProfessionalsPage() {
                 key={prof.id}
                 className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all"
               >
-                {/* Avatar + Name */}
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center shrink-0">
                     <span className="text-green-700 dark:text-green-300 font-bold">
@@ -179,31 +174,33 @@ export default function ProfessionalsPage() {
                       {prof.profiles?.country}
                     </p>
                   </div>
-                  <span className="ml-auto bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-2 py-1 rounded-full">
-                    ✓ Verified
-                  </span>
+                  {prof.verification_status === 'verified' ? (
+                    <span className="ml-auto bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-2 py-1 rounded-full">
+                      ✓ Verified
+                    </span>
+                  ) : (
+                    <span className="ml-auto bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs font-medium px-2 py-1 rounded-full">
+                      ⏳ Unverified
+                    </span>
+                  )}
                 </div>
 
-                {/* Profession */}
                 <p className="text-green-600 dark:text-green-400 text-sm font-medium mb-2">
                   {getProfessionLabel(prof.profession_type)}
                 </p>
 
-                {/* Years Experience */}
                 {prof.years_experience > 0 && (
                   <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
                     {prof.years_experience} year{prof.years_experience !== 1 ? 's' : ''} experience
                   </p>
                 )}
 
-                {/* License Number */}
                 {prof.license_number && (
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
                     License: {prof.license_number}
                   </p>
                 )}
 
-                {/* View Profile Button */}
                 <Link
                   href={`/professionals/${prof.id}`}
                   className="block w-full text-center bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"

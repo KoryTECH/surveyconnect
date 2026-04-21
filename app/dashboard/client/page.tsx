@@ -128,7 +128,7 @@ export default function ClientDashboard() {
 						onError={(e) => (e.currentTarget.style.display = "none")}
 					/>
 					<h1 className="text-xl font-bold text-gray-900 dark:text-white">
-						Survey<span className="text-green-600">Connect</span>
+						Survey<span className="text-green-600">ConnectHub</span>
 					</h1>
 				</div>
 

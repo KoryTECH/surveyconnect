@@ -62,7 +62,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Survey<span className="text-green-600">Connect</span>
+            Survey<span className="text-green-600">ConnectHub</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2">Welcome back</p>
         </div>

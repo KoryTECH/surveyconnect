@@ -12,7 +12,7 @@ export default function LandingPage() {
 						className="h-10 w-auto"
 					/>
 					<h1 className="text-2xl font-bold text-gray-900">
-						Survey<span className="text-green-600">Connect</span>
+						Survey<span className="text-green-600">ConnectHub</span>
 					</h1>
 				</div>
 				<div className="flex items-center gap-4">
@@ -299,7 +299,7 @@ export default function LandingPage() {
 								className="h-8 w-auto"
 							/>
 							<h1 className="text-2xl font-bold text-white">
-								Survey<span className="text-green-400">Connect</span>
+								Survey<span className="text-green-400">ConnectHub</span>
 							</h1>
 						</div>
 						<div className="flex items-center gap-6 text-sm">
