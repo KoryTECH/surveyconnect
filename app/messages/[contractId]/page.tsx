@@ -16,6 +16,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true)
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [userRole, setUserRole] = useState<string>('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
@@ -28,6 +29,19 @@ export default function MessagesPage() {
       if (!user) { router.push('/login'); return }
       setUser(user)
 
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      const role = profileData?.role || 'client'
+      setUserRole(role)
+
+      const dashboardFallback = role === 'professional'
+        ? '/dashboard/professional'
+        : '/dashboard/client'
+
       const { data: contractData } = await supabase
         .from('contracts')
         .select(`
@@ -37,15 +51,22 @@ export default function MessagesPage() {
           professional:profiles!contracts_professional_id_fkey(full_name)
         `)
         .eq('id', contractId)
-        .single()
+        .maybeSingle()
 
-      if (!contractData || contractData.status !== 'active') {
-        router.push('/dashboard/client')
+      if (!contractData) {
+        router.push(dashboardFallback)
         return
       }
 
+      // Allow active and completed contracts (so chat history is preserved)
+      if (!['active', 'completed'].includes(contractData.status)) {
+        router.push(dashboardFallback)
+        return
+      }
+
+      // Make sure user is part of this contract
       if (contractData.client_id !== user.id && contractData.professional_id !== user.id) {
-        router.push('/dashboard/client')
+        router.push(dashboardFallback)
         return
       }
 
@@ -152,9 +173,11 @@ export default function MessagesPage() {
     ? contract?.professional?.full_name
     : contract?.client?.full_name
 
-  const dashboardLink = contract?.client_id === user?.id
-    ? '/dashboard/client/contracts'
-    : '/dashboard/professional/contracts'
+  const dashboardLink = userRole === 'professional'
+    ? '/dashboard/professional/contracts'
+    : '/dashboard/client/contracts'
+
+  const isCompleted = contract?.status === 'completed'
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
@@ -176,9 +199,15 @@ export default function MessagesPage() {
             <p className="text-xs text-gray-500 dark:text-gray-400">{contract?.jobs?.title}</p>
           </div>
         </div>
-        <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-3 py-1 rounded-full">
-          🟢 Active Contract
-        </span>
+        {isCompleted ? (
+          <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs font-medium px-3 py-1 rounded-full">
+            ✅ Completed
+          </span>
+        ) : (
+          <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-3 py-1 rounded-full">
+            🟢 Active Contract
+          </span>
+        )}
       </nav>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
@@ -229,25 +258,31 @@ export default function MessagesPage() {
       </div>
 
       <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-6 py-4 shrink-0">
-        <div className="flex items-end gap-3">
-          <textarea
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type a message... (Enter to send)"
-            rows={1}
-            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 resize-none text-sm"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!newMessage.trim() || sending}
-            className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white p-3 rounded-xl transition-colors shrink-0"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
-        </div>
+        {isCompleted ? (
+          <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-2">
+            This contract is completed. Chat is read-only.
+          </div>
+        ) : (
+          <div className="flex items-end gap-3">
+            <textarea
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type a message... (Enter to send)"
+              rows={1}
+              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 resize-none text-sm"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!newMessage.trim() || sending}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white p-3 rounded-xl transition-colors shrink-0"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
