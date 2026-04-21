@@ -6,23 +6,26 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SurveyConnect",
-  description: "Marketplace for geospatial professionals",
-  icons: {
-    icon: "/logo.png",
-  },
+	title: "SurveyConnectHub",
+	description: "Marketplace for geospatial professionals",
+	icons: {
+		icon: "/logo.png",
+	},
 };
 
 export default function RootLayout({
-  children,
+	children,
 }: Readonly<{
-  children: React.ReactNode;
+	children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
-    </html>
-  );
+	return (
+		<html
+			lang="en"
+			suppressHydrationWarning
+		>
+			<body className={inter.className}>
+				<ThemeProvider>{children}</ThemeProvider>
+			</body>
+		</html>
+	);
 }

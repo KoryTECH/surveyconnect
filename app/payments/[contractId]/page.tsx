@@ -78,7 +78,6 @@ export default function PaymentPage() {
   const agreedBudget = Number(contract?.agreed_budget ?? 0)
   const clientFee = agreedBudget * 0.08
   const clientTotal = agreedBudget + clientFee
-  const professionalReceives = agreedBudget * 0.93
 
   if (loading) {
     return (
@@ -133,10 +132,6 @@ export default function PaymentPage() {
                 <span className="text-gray-600 dark:text-gray-400">Service Fee (8%)</span>
                 <span className="font-medium text-gray-900 dark:text-white">+${clientFee.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Professional Receives</span>
-                <span className="font-medium text-green-600">${professionalReceives.toFixed(2)}</span>
-              </div>
               <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex justify-between">
                 <span className="font-bold text-gray-900 dark:text-white">Total to Pay</span>
                 <div className="text-right">
@@ -144,12 +139,6 @@ export default function PaymentPage() {
                   <p className="text-xs text-gray-400 dark:text-gray-500">paid in NGN at checkout</p>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
-              <p className="text-xs text-blue-700 dark:text-blue-400 text-center">
-                ℹ️ 8% service fee from client + 7% from professional = 15% platform commission
-              </p>
             </div>
 
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-6">
