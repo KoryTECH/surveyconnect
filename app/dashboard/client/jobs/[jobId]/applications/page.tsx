@@ -40,16 +40,14 @@ export default function JobApplicationsPage() {
 
 			const { data: apps } = await supabase
 				.from("job_applications")
-				.select(
-					`
+				.select(`
           *,
           profiles!job_applications_professional_id_fkey (
             full_name,
             country,
             email
           )
-        `,
-				)
+        `)
 				.eq("job_id", jobId)
 				.order("created_at", { ascending: false });
 
@@ -59,10 +57,7 @@ export default function JobApplicationsPage() {
 		getData();
 	}, [jobId]);
 
-	const handleAccept = async (
-		applicationId: string,
-		professionalId: string,
-	) => {
+	const handleAccept = async (applicationId: string, professionalId: string) => {
 		const supabase = createClient();
 		setAccepting(applicationId);
 
@@ -148,19 +143,9 @@ export default function JobApplicationsPage() {
 						{job?.description}
 					</p>
 					<div className="flex items-center gap-4 mt-3 text-xs text-gray-400 dark:text-gray-500">
-						<span>
-							💰 ${job?.budget} {job?.budget_type}
-						</span>
-						<span>
-							📍{" "}
-							{[job?.location_city, job?.location_country]
-								.filter(Boolean)
-								.join(", ")}
-						</span>
-						<span>
-							👥 {applications.length} application
-							{applications.length !== 1 ? "s" : ""}
-						</span>
+						<span>💰 ${job?.budget} {job?.budget_type}</span>
+						<span>📍 {[job?.location_city, job?.location_country].filter(Boolean).join(", ")}</span>
+						<span>👥 {applications.length} application{applications.length !== 1 ? "s" : ""}</span>
 					</div>
 				</div>
 
@@ -211,6 +196,14 @@ export default function JobApplicationsPage() {
 													{app.profiles?.country}
 												</p>
 											</div>
+											{/* View Profile link */}
+											<Link
+												href={`/professionals/${app.professional_id}`}
+												className="ml-2 text-xs text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium underline underline-offset-2"
+												target="_blank"
+											>
+												View Profile →
+											</Link>
 										</div>
 
 										<p className="text-gray-600 dark:text-gray-400 text-sm mb-3 leading-relaxed">
@@ -220,9 +213,7 @@ export default function JobApplicationsPage() {
 										<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
 											<span>📅 Applied {formatDate(app.created_at)}</span>
 											{app.availability_date && (
-												<span>
-													🗓 Available from {formatDate(app.availability_date)}
-												</span>
+												<span>🗓 Available from {formatDate(app.availability_date)}</span>
 											)}
 										</div>
 									</div>
@@ -240,15 +231,11 @@ export default function JobApplicationsPage() {
 										{app.status === "pending" && (
 											<div className="space-y-2">
 												<button
-													onClick={() =>
-														handleAccept(app.id, app.professional_id)
-													}
+													onClick={() => handleAccept(app.id, app.professional_id)}
 													disabled={accepting === app.id}
 													className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
 												>
-													{accepting === app.id
-														? "Creating contract..."
-														: "Accept & Pay"}
+													{accepting === app.id ? "Creating contract..." : "Accept & Pay"}
 												</button>
 												<button
 													onClick={() => handleReject(app.id)}
