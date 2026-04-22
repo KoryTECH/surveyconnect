@@ -24,13 +24,8 @@ export default function ClientDashboard() {
 
 	useEffect(() => {
 		const getProfile = async () => {
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) {
-				router.push("/login");
-				return;
-			}
+			const { data: { user } } = await supabase.auth.getUser();
+			if (!user) { router.push("/login"); return; }
 
 			const { data } = await supabase
 				.from("profiles")
@@ -41,13 +36,12 @@ export default function ClientDashboard() {
 			setProfile(data);
 			setLoading(false);
 
-			// Fetch unread messages count
 			const fetchUnread = async () => {
 				const { data: contracts } = await supabase
 					.from("contracts")
 					.select("id")
 					.eq("client_id", user.id)
-					.eq("status", "active");
+					.in("status", ["active", "completed"]);
 
 				if (!contracts || contracts.length === 0) return;
 
@@ -58,19 +52,18 @@ export default function ClientDashboard() {
 					.select("id", { count: "exact", head: true })
 					.in("contract_id", contractIds)
 					.neq("sender_id", user.id)
-					.is("read_at", null);
+					.eq("is_read", false);
 
 				setUnreadCount(count || 0);
 			};
 
 			fetchUnread();
 
-			// Realtime: listen for new messages across all active contracts
 			const { data: contracts } = await supabase
 				.from("contracts")
 				.select("id")
 				.eq("client_id", user.id)
-				.eq("status", "active");
+				.in("status", ["active", "completed"]);
 
 			if (contracts && contracts.length > 0) {
 				const channel = supabase
@@ -84,9 +77,7 @@ export default function ClientDashboard() {
 						},
 						(payload) => {
 							const msg = payload.new as any;
-							const isMyContract = contracts.some(
-								(c) => c.id === msg.contract_id,
-							);
+							const isMyContract = contracts.some((c) => c.id === msg.contract_id);
 							const isFromOther = msg.sender_id !== user.id;
 							if (isMyContract && isFromOther) {
 								setUnreadCount((prev) => prev + 1);
@@ -95,9 +86,7 @@ export default function ClientDashboard() {
 					)
 					.subscribe();
 
-				return () => {
-					supabase.removeChannel(channel);
-				};
+				return () => { supabase.removeChannel(channel); };
 			}
 		};
 
@@ -172,28 +161,16 @@ export default function ClientDashboard() {
 
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-						<p className="text-gray-500 dark:text-gray-400 text-sm">
-							Active Projects
-						</p>
-						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-							0
-						</p>
+						<p className="text-gray-500 dark:text-gray-400 text-sm">Active Projects</p>
+						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">0</p>
 					</div>
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-						<p className="text-gray-500 dark:text-gray-400 text-sm">
-							Total Spent
-						</p>
-						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-							$0
-						</p>
+						<p className="text-gray-500 dark:text-gray-400 text-sm">Total Spent</p>
+						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">$0</p>
 					</div>
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-						<p className="text-gray-500 dark:text-gray-400 text-sm">
-							Completed Projects
-						</p>
-						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-							0
-						</p>
+						<p className="text-gray-500 dark:text-gray-400 text-sm">Completed Projects</p>
+						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">0</p>
 					</div>
 				</div>
 
@@ -207,9 +184,7 @@ export default function ClientDashboard() {
 							className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
 						>
 							<div className="text-2xl mb-2">📋</div>
-							<div className="font-semibold text-gray-900 dark:text-white">
-								Post a Job
-							</div>
+							<div className="font-semibold text-gray-900 dark:text-white">Post a Job</div>
 							<div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
 								Find the right professional for your project
 							</div>
@@ -220,9 +195,7 @@ export default function ClientDashboard() {
 							className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
 						>
 							<div className="text-2xl mb-2">📁</div>
-							<div className="font-semibold text-gray-900 dark:text-white">
-								My Jobs
-							</div>
+							<div className="font-semibold text-gray-900 dark:text-white">My Jobs</div>
 							<div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
 								View applications for your posted jobs
 							</div>
@@ -238,9 +211,7 @@ export default function ClientDashboard() {
 								</span>
 							)}
 							<div className="text-2xl mb-2">📄</div>
-							<div className="font-semibold text-gray-900 dark:text-white">
-								My Contracts
-							</div>
+							<div className="font-semibold text-gray-900 dark:text-white">My Contracts</div>
 							<div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
 								Review completed work and release payments
 							</div>
@@ -251,9 +222,7 @@ export default function ClientDashboard() {
 							className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
 						>
 							<div className="text-2xl mb-2">🔍</div>
-							<div className="font-semibold text-gray-900 dark:text-white">
-								Browse Professionals
-							</div>
+							<div className="font-semibold text-gray-900 dark:text-white">Browse Professionals</div>
 							<div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
 								Search verified geospatial experts
 							</div>

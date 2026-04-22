@@ -58,13 +58,11 @@ export default function MessagesPage() {
         return
       }
 
-      // Allow active and completed contracts (so chat history is preserved)
       if (!['active', 'completed'].includes(contractData.status)) {
         router.push(dashboardFallback)
         return
       }
 
-      // Make sure user is part of this contract
       if (contractData.client_id !== user.id && contractData.professional_id !== user.id) {
         router.push(dashboardFallback)
         return
@@ -79,6 +77,15 @@ export default function MessagesPage() {
         .order('created_at', { ascending: true })
 
       setMessages(messagesData || [])
+
+      // Mark all unread messages from the other person as read
+      await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('contract_id', contractId)
+        .neq('sender_id', user.id)
+        .eq('is_read', false)
+
       setLoading(false)
 
       channel = supabase
@@ -100,12 +107,18 @@ export default function MessagesPage() {
 
             if (newMsg) {
               setMessages(prev => [...prev, newMsg])
+
+              // Mark as read immediately if message is from the other person
+              if (newMsg.sender_id !== user.id) {
+                await supabase
+                  .from('messages')
+                  .update({ is_read: true })
+                  .eq('id', newMsg.id)
+              }
             }
           }
         )
-        .subscribe((status) => {
-          console.log('Realtime subscription status:', status)
-        })
+        .subscribe()
     }
 
     init()
@@ -129,6 +142,7 @@ export default function MessagesPage() {
         contract_id: contractId,
         sender_id: user.id,
         content: newMessage.trim(),
+        is_read: false,
       })
 
     if (!error) setNewMessage('')

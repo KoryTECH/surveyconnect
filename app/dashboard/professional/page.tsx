@@ -25,13 +25,8 @@ export default function ProfessionalDashboard() {
 
 	useEffect(() => {
 		const getProfile = async () => {
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) {
-				router.push("/login");
-				return;
-			}
+			const { data: { user } } = await supabase.auth.getUser();
+			if (!user) { router.push("/login"); return; }
 
 			const { data } = await supabase
 				.from("profiles")
@@ -49,13 +44,12 @@ export default function ProfessionalDashboard() {
 			setProfProfile(prof);
 			setLoading(false);
 
-			// Fetch unread messages count
 			const fetchUnread = async () => {
 				const { data: contracts } = await supabase
 					.from("contracts")
 					.select("id")
 					.eq("professional_id", user.id)
-					.eq("status", "active");
+					.in("status", ["active", "completed"]);
 
 				if (!contracts || contracts.length === 0) return;
 
@@ -66,19 +60,18 @@ export default function ProfessionalDashboard() {
 					.select("id", { count: "exact", head: true })
 					.in("contract_id", contractIds)
 					.neq("sender_id", user.id)
-					.is("read_at", null);
+					.eq("is_read", false);
 
 				setUnreadCount(count || 0);
 			};
 
 			fetchUnread();
 
-			// Realtime: listen for new messages across all active contracts
 			const { data: contracts } = await supabase
 				.from("contracts")
 				.select("id")
 				.eq("professional_id", user.id)
-				.eq("status", "active");
+				.in("status", ["active", "completed"]);
 
 			if (contracts && contracts.length > 0) {
 				const channel = supabase
@@ -92,9 +85,7 @@ export default function ProfessionalDashboard() {
 						},
 						(payload) => {
 							const msg = payload.new as any;
-							const isMyContract = contracts.some(
-								(c) => c.id === msg.contract_id,
-							);
+							const isMyContract = contracts.some((c) => c.id === msg.contract_id);
 							const isFromOther = msg.sender_id !== user.id;
 							if (isMyContract && isFromOther) {
 								setUnreadCount((prev) => prev + 1);
@@ -103,9 +94,7 @@ export default function ProfessionalDashboard() {
 					)
 					.subscribe();
 
-				return () => {
-					supabase.removeChannel(channel);
-				};
+				return () => { supabase.removeChannel(channel); };
 			}
 		};
 
@@ -211,28 +200,16 @@ export default function ProfessionalDashboard() {
 
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-						<p className="text-gray-500 dark:text-gray-400 text-sm">
-							Jobs Completed
-						</p>
-						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-							0
-						</p>
+						<p className="text-gray-500 dark:text-gray-400 text-sm">Jobs Completed</p>
+						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">0</p>
 					</div>
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-						<p className="text-gray-500 dark:text-gray-400 text-sm">
-							Total Earned
-						</p>
-						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-							$0
-						</p>
+						<p className="text-gray-500 dark:text-gray-400 text-sm">Total Earned</p>
+						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">$0</p>
 					</div>
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-						<p className="text-gray-500 dark:text-gray-400 text-sm">
-							Average Rating
-						</p>
-						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-							—
-						</p>
+						<p className="text-gray-500 dark:text-gray-400 text-sm">Average Rating</p>
+						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">—</p>
 					</div>
 				</div>
 
@@ -246,9 +223,7 @@ export default function ProfessionalDashboard() {
 							className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
 						>
 							<div className="text-2xl mb-2">🔍</div>
-							<div className="font-semibold text-gray-900 dark:text-white">
-								Browse Jobs
-							</div>
+							<div className="font-semibold text-gray-900 dark:text-white">Browse Jobs</div>
 							<div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
 								Find geospatial projects matching your skills
 							</div>
@@ -259,9 +234,7 @@ export default function ProfessionalDashboard() {
 							className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
 						>
 							<div className="text-2xl mb-2">📋</div>
-							<div className="font-semibold text-gray-900 dark:text-white">
-								My Applications
-							</div>
+							<div className="font-semibold text-gray-900 dark:text-white">My Applications</div>
 							<div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
 								Track jobs you have applied to
 							</div>
@@ -277,9 +250,7 @@ export default function ProfessionalDashboard() {
 								</span>
 							)}
 							<div className="text-2xl mb-2">📄</div>
-							<div className="font-semibold text-gray-900 dark:text-white">
-								My Contracts
-							</div>
+							<div className="font-semibold text-gray-900 dark:text-white">My Contracts</div>
 							<div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
 								View active contracts and mark jobs complete
 							</div>
@@ -290,9 +261,7 @@ export default function ProfessionalDashboard() {
 							className="p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-left hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all block"
 						>
 							<div className="text-2xl mb-2">👤</div>
-							<div className="font-semibold text-gray-900 dark:text-white">
-								Update Profile
-							</div>
+							<div className="font-semibold text-gray-900 dark:text-white">Update Profile</div>
 							<div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
 								Add your skills and portfolio
 							</div>
