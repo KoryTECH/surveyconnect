@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "SurveyConnect – Marketplace for Geospatial Professionals",
-    template: "%s | SurveyConnect",
+    default: "SurveyConnectHub – Marketplace for Geospatial Professionals",
+    template: "%s | SurveyConnectHub",
   },
   description:
     "Connect with verified surveying and geospatial professionals. Post jobs, submit proposals, and get work done — securely, with escrow payments.",
@@ -23,14 +23,14 @@ export const metadata: Metadata = {
     "Africa",
     "marketplace",
   ],
-  authors: [{ name: "SurveyConnect" }],
-  creator: "SurveyConnect",
+  authors: [{ name: "SurveyConnectHub" }],
+  creator: "SurveyConnectHub",
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "https://surveyconnect.vercel.app",
-    siteName: "SurveyConnect",
-    title: "SurveyConnect – Marketplace for Geospatial Professionals",
+    siteName: "SurveyConnectHub",
+    title: "SurveyConnectHub – Marketplace for Geospatial Professionals",
     description:
       "Connect with verified surveying and geospatial professionals. Post jobs, submit proposals, and get work done — securely, with escrow payments.",
     images: [
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SurveyConnect – Marketplace for Geospatial Professionals",
+    title: "SurveyConnectHub – Marketplace for Geospatial Professionals",
     description:
       "Connect with verified surveying and geospatial professionals. Post jobs, submit proposals, and get work done — securely, with escrow payments.",
     images: ["/logo.png"],
