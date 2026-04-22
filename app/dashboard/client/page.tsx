@@ -18,6 +18,11 @@ export default function ClientDashboard() {
 	const [profile, setProfile] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
 	const [unreadCount, setUnreadCount] = useState(0);
+	const [stats, setStats] = useState({
+		activeProjects: 0,
+		totalSpent: 0,
+		completedProjects: 0,
+	});
 	const { theme, toggleTheme } = useTheme();
 	const supabaseRef = useRef(createClient());
 	const supabase = supabaseRef.current;
@@ -34,18 +39,40 @@ export default function ClientDashboard() {
 				.single();
 
 			setProfile(data);
+
+			// Fetch stats
+			const { data: contracts } = await supabase
+				.from("contracts")
+				.select("id, status, escrow_amount, payment_released_at")
+				.eq("client_id", user.id);
+
+			if (contracts) {
+				const active = contracts.filter(c => c.status === "active").length;
+				const completed = contracts.filter(c => c.payment_released_at !== null).length;
+				const spent = contracts
+					.filter(c => c.payment_released_at !== null)
+					.reduce((sum, c) => sum + Number(c.escrow_amount || 0), 0);
+
+				setStats({
+					activeProjects: active,
+					totalSpent: spent,
+					completedProjects: completed,
+				});
+			}
+
 			setLoading(false);
 
+			// Fetch unread messages
 			const fetchUnread = async () => {
-				const { data: contracts } = await supabase
+				const { data: activeContracts } = await supabase
 					.from("contracts")
 					.select("id")
 					.eq("client_id", user.id)
 					.in("status", ["active", "completed"]);
 
-				if (!contracts || contracts.length === 0) return;
+				if (!activeContracts || activeContracts.length === 0) return;
 
-				const contractIds = contracts.map((c) => c.id);
+				const contractIds = activeContracts.map((c) => c.id);
 
 				const { count } = await supabase
 					.from("messages")
@@ -59,25 +86,21 @@ export default function ClientDashboard() {
 
 			fetchUnread();
 
-			const { data: contracts } = await supabase
+			const { data: activeContracts } = await supabase
 				.from("contracts")
 				.select("id")
 				.eq("client_id", user.id)
 				.in("status", ["active", "completed"]);
 
-			if (contracts && contracts.length > 0) {
+			if (activeContracts && activeContracts.length > 0) {
 				const channel = supabase
 					.channel("client-unread-messages")
 					.on(
 						"postgres_changes",
-						{
-							event: "INSERT",
-							schema: "public",
-							table: "messages",
-						},
+						{ event: "INSERT", schema: "public", table: "messages" },
 						(payload) => {
 							const msg = payload.new as any;
-							const isMyContract = contracts.some((c) => c.id === msg.contract_id);
+							const isMyContract = activeContracts.some((c) => c.id === msg.contract_id);
 							const isFromOther = msg.sender_id !== user.id;
 							if (isMyContract && isFromOther) {
 								setUnreadCount((prev) => prev + 1);
@@ -162,15 +185,21 @@ export default function ClientDashboard() {
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
 						<p className="text-gray-500 dark:text-gray-400 text-sm">Active Projects</p>
-						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">0</p>
+						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+							{stats.activeProjects}
+						</p>
 					</div>
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
 						<p className="text-gray-500 dark:text-gray-400 text-sm">Total Spent</p>
-						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">$0</p>
+						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+							${stats.totalSpent.toLocaleString()}
+						</p>
 					</div>
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
 						<p className="text-gray-500 dark:text-gray-400 text-sm">Completed Projects</p>
-						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">0</p>
+						<p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+							{stats.completedProjects}
+						</p>
 					</div>
 				</div>
 
