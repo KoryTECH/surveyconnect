@@ -25,13 +25,8 @@ export default function VerificationPage() {
 
 	useEffect(() => {
 		const getData = async () => {
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) {
-				router.push("/login");
-				return;
-			}
+			const { data: { user } } = await supabase.auth.getUser();
+			if (!user) { router.push("/login"); return; }
 
 			const { data: profile } = await supabase
 				.from("profiles")
@@ -59,23 +54,35 @@ export default function VerificationPage() {
 		getData();
 	}, []);
 
+	const getProfessionLabel = (type: string) => {
+		const labels: any = {
+			land_surveyor: "Land Surveyor",
+			gis_analyst: "GIS Analyst",
+			drone_pilot: "Drone/UAV Pilot",
+			cartographer: "Cartographer",
+			photogrammetrist: "Photogrammetrist",
+			lidar_specialist: "LiDAR Specialist",
+			remote_sensing_analyst: "Remote Sensing Analyst",
+			urban_planner: "Urban Planner",
+			spatial_data_scientist: "Spatial Data Scientist",
+			hydrographic_surveyor: "Hydrographic Surveyor",
+			mining_surveyor: "Mining Surveyor",
+			construction_surveyor: "Construction Surveyor",
+			environmental_analyst: "Environmental Analyst",
+			bim_specialist: "BIM Specialist",
+			other: "Other",
+		};
+		return labels[type] || type;
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError("");
 		setSuccess("");
 
-		if (!idFile) {
-			setError("Please upload your government-issued ID");
-			return;
-		}
-		if (!licenseFile) {
-			setError("Please upload your professional license or certificate");
-			return;
-		}
-		if (!professionType) {
-			setError("Please select your profession type");
-			return;
-		}
+		if (!idFile) { setError("Please upload your government-issued ID"); return; }
+		if (!licenseFile) { setError("Please upload your professional license or certificate"); return; }
+		if (!professionType) { setError("Please select your profession type"); return; }
 
 		setUploading(true);
 
@@ -105,9 +112,23 @@ export default function VerificationPage() {
 				});
 			if (updateError) throw updateError;
 
-			setSuccess(
-				"Documents uploaded successfully! Our team will review your verification within 24-48 hours.",
-			);
+			// Send email notification to admin
+			try {
+				await fetch("/api/send-verification-email", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						professionalName: profile?.full_name,
+						professionType: getProfessionLabel(professionType),
+						userId: user.id,
+					}),
+				});
+			} catch (emailErr) {
+				// Don't fail the whole submission if email fails
+				console.error("Email notification failed:", emailErr);
+			}
+
+			setSuccess("Documents uploaded successfully! Our team will review your verification within 24-48 hours.");
 		} catch (err: any) {
 			setError(err.message || "Upload failed. Please try again.");
 		} finally {
@@ -132,8 +153,7 @@ export default function VerificationPage() {
 						Verification Pending
 					</h2>
 					<p className="text-gray-500 dark:text-gray-400 mb-6">
-						Your documents have been submitted and are being reviewed by our
-						team. This usually takes 24-48 hours.
+						Your documents have been submitted and are being reviewed by our team. This usually takes 24-48 hours.
 					</p>
 					<Link
 						href="/dashboard/professional"
@@ -155,8 +175,7 @@ export default function VerificationPage() {
 						You are Verified!
 					</h2>
 					<p className="text-gray-500 dark:text-gray-400 mb-6">
-						Your professional credentials have been verified. You can now apply
-						to jobs on SurveyConnectHub.
+						Your professional credentials have been verified. You can now apply to jobs on SurveyConnectHub.
 					</p>
 					<Link
 						href="/dashboard/professional"
@@ -172,7 +191,6 @@ export default function VerificationPage() {
 	return (
 		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-12 px-4 transition-colors duration-300">
 			<div className="max-w-2xl mx-auto">
-				{/* Header */}
 				<div className="text-center mb-8">
 					<h1 className="text-3xl font-bold text-gray-900 dark:text-white">
 						Survey<span className="text-green-600">ConnectHub</span>
@@ -183,15 +201,12 @@ export default function VerificationPage() {
 				</div>
 
 				<div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-8 border border-transparent dark:border-gray-800">
-					{/* Info Banner */}
 					<div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-8">
 						<h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-1">
 							Why do we verify professionals?
 						</h3>
 						<p className="text-sm text-blue-700 dark:text-blue-400">
-							Verification builds trust with clients and ensures only qualified
-							professionals work on critical geospatial projects. Verified
-							professionals get more job opportunities.
+							Verification builds trust with clients and ensures only qualified professionals work on critical geospatial projects. Verified professionals get more job opportunities.
 						</p>
 					</div>
 
@@ -206,11 +221,7 @@ export default function VerificationPage() {
 						</div>
 					)}
 
-					<form
-						onSubmit={handleSubmit}
-						className="space-y-6"
-					>
-						{/* Profession Type */}
+					<form onSubmit={handleSubmit} className="space-y-6">
 						<div>
 							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 								Profession Type <span className="text-red-500">*</span>
@@ -228,29 +239,18 @@ export default function VerificationPage() {
 								<option value="cartographer">Cartographer</option>
 								<option value="photogrammetrist">Photogrammetrist</option>
 								<option value="lidar_specialist">LiDAR Specialist</option>
-								<option value="remote_sensing_analyst">
-									Remote Sensing Analyst
-								</option>
+								<option value="remote_sensing_analyst">Remote Sensing Analyst</option>
 								<option value="urban_planner">Urban Planner</option>
-								<option value="spatial_data_scientist">
-									Spatial Data Scientist
-								</option>
-								<option value="hydrographic_surveyor">
-									Hydrographic Surveyor
-								</option>
+								<option value="spatial_data_scientist">Spatial Data Scientist</option>
+								<option value="hydrographic_surveyor">Hydrographic Surveyor</option>
 								<option value="mining_surveyor">Mining Surveyor</option>
-								<option value="construction_surveyor">
-									Construction Surveyor
-								</option>
-								<option value="environmental_analyst">
-									Environmental Analyst
-								</option>
+								<option value="construction_surveyor">Construction Surveyor</option>
+								<option value="environmental_analyst">Environmental Analyst</option>
 								<option value="bim_specialist">BIM Specialist</option>
 								<option value="other">Other</option>
 							</select>
 						</div>
 
-						{/* License Number */}
 						<div>
 							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 								License / Registration Number
@@ -264,7 +264,6 @@ export default function VerificationPage() {
 							/>
 						</div>
 
-						{/* Years of Experience */}
 						<div>
 							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 								Years of Experience
@@ -280,18 +279,14 @@ export default function VerificationPage() {
 							/>
 						</div>
 
-						{/* ID Upload */}
 						<div>
 							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 								Government-Issued ID <span className="text-red-500">*</span>
 							</label>
 							<p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-								Passport, Driver&apos;s License, or National ID Card (JPG, PNG
-								or PDF, max 5MB)
+								Passport, Driver&apos;s License, or National ID Card (JPG, PNG or PDF, max 5MB)
 							</p>
-							<div
-								className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${idFile ? "border-green-400 bg-green-50 dark:bg-green-900/20" : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"}`}
-							>
+							<div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${idFile ? "border-green-400 bg-green-50 dark:bg-green-900/20" : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"}`}>
 								<input
 									type="file"
 									accept="image/jpeg,image/png,application/pdf"
@@ -299,48 +294,32 @@ export default function VerificationPage() {
 									className="hidden"
 									id="id-upload"
 								/>
-								<label
-									htmlFor="id-upload"
-									className="cursor-pointer"
-								>
+								<label htmlFor="id-upload" className="cursor-pointer">
 									{idFile ? (
 										<div>
 											<div className="text-2xl mb-1">✅</div>
-											<p className="text-green-700 dark:text-green-400 font-medium">
-												{idFile.name}
-											</p>
-											<p className="text-xs text-green-600 dark:text-green-500 mt-1">
-												Click to change
-											</p>
+											<p className="text-green-700 dark:text-green-400 font-medium">{idFile.name}</p>
+											<p className="text-xs text-green-600 dark:text-green-500 mt-1">Click to change</p>
 										</div>
 									) : (
 										<div>
 											<div className="text-3xl mb-2">🪪</div>
-											<p className="text-gray-600 dark:text-gray-400 font-medium">
-												Click to upload ID
-											</p>
-											<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-												JPG, PNG or PDF
-											</p>
+											<p className="text-gray-600 dark:text-gray-400 font-medium">Click to upload ID</p>
+											<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">JPG, PNG or PDF</p>
 										</div>
 									)}
 								</label>
 							</div>
 						</div>
 
-						{/* License Upload */}
 						<div>
 							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-								Professional License / Certificate{" "}
-								<span className="text-red-500">*</span>
+								Professional License / Certificate <span className="text-red-500">*</span>
 							</label>
 							<p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-								Your surveying license, GIS certification, or relevant
-								professional certificate (JPG, PNG or PDF, max 5MB)
+								Your surveying license, GIS certification, or relevant professional certificate (JPG, PNG or PDF, max 5MB)
 							</p>
-							<div
-								className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${licenseFile ? "border-green-400 bg-green-50 dark:bg-green-900/20" : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"}`}
-							>
+							<div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${licenseFile ? "border-green-400 bg-green-50 dark:bg-green-900/20" : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"}`}>
 								<input
 									type="file"
 									accept="image/jpeg,image/png,application/pdf"
@@ -348,36 +327,24 @@ export default function VerificationPage() {
 									className="hidden"
 									id="license-upload"
 								/>
-								<label
-									htmlFor="license-upload"
-									className="cursor-pointer"
-								>
+								<label htmlFor="license-upload" className="cursor-pointer">
 									{licenseFile ? (
 										<div>
 											<div className="text-2xl mb-1">✅</div>
-											<p className="text-green-700 dark:text-green-400 font-medium">
-												{licenseFile.name}
-											</p>
-											<p className="text-xs text-green-600 dark:text-green-500 mt-1">
-												Click to change
-											</p>
+											<p className="text-green-700 dark:text-green-400 font-medium">{licenseFile.name}</p>
+											<p className="text-xs text-green-600 dark:text-green-500 mt-1">Click to change</p>
 										</div>
 									) : (
 										<div>
 											<div className="text-3xl mb-2">📜</div>
-											<p className="text-gray-600 dark:text-gray-400 font-medium">
-												Click to upload license
-											</p>
-											<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-												JPG, PNG or PDF
-											</p>
+											<p className="text-gray-600 dark:text-gray-400 font-medium">Click to upload license</p>
+											<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">JPG, PNG or PDF</p>
 										</div>
 									)}
 								</label>
 							</div>
 						</div>
 
-						{/* Submit */}
 						<button
 							type="submit"
 							disabled={uploading}
@@ -388,10 +355,7 @@ export default function VerificationPage() {
 					</form>
 
 					<p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
-						<Link
-							href="/dashboard/professional"
-							className="text-green-600 hover:underline"
-						>
+						<Link href="/dashboard/professional" className="text-green-600 hover:underline">
 							← Back to Dashboard
 						</Link>
 					</p>
