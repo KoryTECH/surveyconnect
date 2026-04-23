@@ -15,23 +15,16 @@ export default function ClientContractsPage() {
 	useEffect(() => {
 		const getData = async () => {
 			const supabase = createClient();
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) {
-				router.push("/login");
-				return;
-			}
+			const { data: { user } } = await supabase.auth.getUser();
+			if (!user) { router.push("/login"); return; }
 
 			const { data } = await supabase
 				.from("contracts")
-				.select(
-					`
-          *,
-          jobs(title, description),
-          profiles!contracts_professional_id_fkey(full_name, email)
-        `,
-				)
+				.select(`
+					*,
+					jobs(title, description),
+					profiles!contracts_professional_id_fkey(full_name, email)
+				`)
 				.eq("client_id", user.id)
 				.in("status", ["active", "completed"])
 				.order("created_at", { ascending: false });
@@ -61,10 +54,15 @@ export default function ClientContractsPage() {
 				return;
 			}
 
+			// Update local state to reflect payment released
 			setContracts((prev) =>
-				prev.map((c) => (c.id === contractId ? { ...c, status: "paid" } : c)),
+				prev.map((c) =>
+					c.id === contractId
+						? { ...c, payment_released_at: new Date().toISOString() }
+						: c,
+				),
 			);
-			setMessage("Payment released successfully!");
+			setMessage("Payment released successfully! Messaging has been closed.");
 		} catch (err) {
 			setMessage("Something went wrong. Please try again.");
 		} finally {
@@ -98,152 +96,149 @@ export default function ClientContractsPage() {
 					href="/dashboard/client"
 					className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
 				>
-					← Back to Dashboard
+					Back to Dashboard
 				</Link>
 			</nav>
 
 			<div className="max-w-4xl mx-auto px-6 py-8">
 				<div className="mb-8">
-					<h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-						My Contracts
-					</h2>
+					<h2 className="text-2xl font-bold text-gray-900 dark:text-white">My Contracts</h2>
 					<p className="text-gray-500 dark:text-gray-400 mt-1">
 						{contracts.length} contract{contracts.length !== 1 ? "s" : ""}
 					</p>
 				</div>
 
 				{message && (
-					<div
-						className={`rounded-xl p-4 mb-6 text-sm font-medium ${
-							message.includes("success")
-								? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
-								: "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
-						}`}
-					>
+					<div className={`rounded-xl p-4 mb-6 text-sm font-medium ${
+						message.includes("success")
+							? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
+							: "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
+					}`}>
 						{message}
 					</div>
 				)}
 
 				{contracts.length === 0 ? (
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-100 dark:border-gray-800">
-						<div className="text-4xl mb-4">📄</div>
-						<h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-							No contracts yet
-						</h3>
-						<p className="text-gray-500 dark:text-gray-400 mb-6">
-							Accept a proposal and pay to start a contract
-						</p>
-						<Link
-							href="/dashboard/client/jobs"
-							className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
-						>
+						<h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No contracts yet</h3>
+						<p className="text-gray-500 dark:text-gray-400 mb-6">Accept a proposal and pay to start a contract</p>
+						<Link href="/dashboard/client/jobs" className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
 							View My Jobs
 						</Link>
 					</div>
 				) : (
 					<div className="space-y-4">
-						{contracts.map((contract) => (
-							<div
-								key={contract.id}
-								className={`bg-white dark:bg-gray-900 rounded-2xl p-6 border transition-all ${
-									contract.status === "completed"
-										? "border-yellow-300 dark:border-yellow-700"
-										: contract.status === "paid"
+						{contracts.map((contract) => {
+							// Messaging is locked ONLY when payment has been released
+							const isChatLocked = contract.payment_released_at !== null;
+							const isPaid = contract.payment_released_at !== null;
+
+							return (
+								<div
+									key={contract.id}
+									className={`bg-white dark:bg-gray-900 rounded-2xl p-6 border transition-all ${
+										isPaid
 											? "border-gray-200 dark:border-gray-700 opacity-75"
+											: contract.status === "completed"
+											? "border-yellow-300 dark:border-yellow-700"
 											: "border-green-300 dark:border-green-700"
-								}`}
-							>
-								<div className="flex items-start justify-between gap-4">
-									<div className="flex-1">
-										<div className="flex items-center gap-2 mb-2">
-											<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-												{contract.jobs?.title}
-											</h3>
-											<span
-												className={`text-xs font-medium px-2 py-1 rounded-full ${
-													contract.status === "active"
-														? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+									}`}
+								>
+									<div className="flex items-start justify-between gap-4">
+										<div className="flex-1">
+											<div className="flex items-center gap-2 mb-2">
+												<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+													{contract.jobs?.title}
+												</h3>
+												<span className={`text-xs font-medium px-2 py-1 rounded-full ${
+													isPaid
+														? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
 														: contract.status === "completed"
-															? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
-															: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-												}`}
-											>
-												{contract.status === "active"
-													? "🟢 In Progress"
-													: contract.status === "completed"
-														? "⏳ Awaiting Approval"
-														: "✅ Paid"}
-											</span>
-										</div>
-
-										<p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
-											Professional: {contract.profiles?.full_name}
-										</p>
-
-										<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
-											<span>📅 Started {formatDate(contract.start_date)}</span>
-										</div>
-
-										{contract.status === "completed" && (
-											<div className="mt-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-												<p className="text-sm text-yellow-700 dark:text-yellow-400 font-medium">
-													⚠️ The professional has marked this job as complete.
-													Review the work and release payment if satisfied.
-												</p>
+														? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
+														: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+												}`}>
+													{isPaid
+														? "Paid"
+														: contract.status === "completed"
+														? "Awaiting Approval"
+														: "In Progress"}
+												</span>
 											</div>
-										)}
-									</div>
 
-									<div className="text-right shrink-0 space-y-3">
-										<div>
-											<p className="text-2xl font-bold text-gray-900 dark:text-white">
-												${Number(contract.agreed_budget).toLocaleString()}
+											<p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
+												Professional: {contract.profiles?.full_name}
 											</p>
+
 											<p className="text-xs text-gray-400 dark:text-gray-500">
-												agreed budget
+												Started {formatDate(contract.start_date)}
 											</p>
+
+											{contract.status === "completed" && !isPaid && (
+												<div className="mt-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+													<p className="text-sm text-yellow-700 dark:text-yellow-400 font-medium">
+														The professional has marked this job as complete. Review the work and release payment if satisfied.
+													</p>
+												</div>
+											)}
 										</div>
 
-										{contract.status === "active" && (
-											<div className="space-y-2">
-												<Link
-													href={`/messages/${contract.id}`}
-													className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-center"
-												>
-													💬 Message
-												</Link>
-												<span className="block bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
-													Work in Progress
-												</span>
+										<div className="text-right shrink-0 space-y-3">
+											<div>
+												<p className="text-2xl font-bold text-gray-900 dark:text-white">
+													${Number(contract.agreed_budget).toLocaleString()}
+												</p>
+												<p className="text-xs text-gray-400 dark:text-gray-500">agreed budget</p>
 											</div>
-										)}
 
-										{contract.status === "completed" && (
 											<div className="space-y-2">
-												<span className="block w-full bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 text-sm font-semibold px-4 py-2 rounded-xl text-center cursor-not-allowed">
-													💬 Message (Disabled)
-												</span>
-												<button
-													onClick={() => handleReleasePayment(contract.id)}
-													disabled={releasing === contract.id}
-													className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-												>
-													{releasing === contract.id
-														? "Releasing..."
-														: "💸 Release Payment"}
-												</button>
-											</div>
-										)}
+												{/* Message button — locked only after payment released */}
+												{isChatLocked ? (
+													<span className="flex items-center justify-center gap-2 w-full bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 text-sm font-semibold px-4 py-2 rounded-xl cursor-not-allowed">
+														<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z" />
+														</svg>
+														Chat Closed
+													</span>
+												) : (
+													<Link
+														href={`/messages/${contract.id}`}
+														className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+													>
+														<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z" />
+														</svg>
+														Open Chat
+													</Link>
+												)}
 
-										{contract.status === "paid" && (
-											<span className="block bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
-												✅ Payment Released
-											</span>
-										)}
+												{/* Release payment — only when completed and not yet paid */}
+												{contract.status === "completed" && !isPaid && (
+													<button
+														onClick={() => handleReleasePayment(contract.id)}
+														disabled={releasing === contract.id}
+														className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+													>
+														{releasing === contract.id ? "Releasing..." : "Release Payment"}
+													</button>
+												)}
+
+												{isPaid && (
+													<span className="block bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
+														Payment Released
+													</span>
+												)}
+
+												{contract.status === "active" && !isPaid && (
+													<span className="block bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
+														Work in Progress
+													</span>
+												)}
+											</div>
+										</div>
 									</div>
 								</div>
-							</div>
-						))}
+							);
+						})}
 					</div>
 				)}
 			</div>
