@@ -39,7 +39,6 @@ export default function AdminDashboard() {
 				return;
 			}
 
-			// Fetch stats
 			const [
 				{ count: totalUsers },
 				{ count: totalClients },
@@ -70,15 +69,25 @@ export default function AdminDashboard() {
 				pendingVerifications: pendingCount || 0,
 			});
 
-			// Fetch pending professionals with their documents
-			const { data: pending } = await supabase
+			// Explicit column selection to avoid RLS silently nulling fields
+			const { data: pending, error: pendingError } = await supabase
 				.from("professional_profiles")
 				.select(`
-					*,
+					id,
+					profession_type,
+					license_number,
+					years_experience,
+					id_document_url,
+					license_url,
+					verification_status,
+					created_at,
 					profiles(full_name, email, country)
 				`)
 				.eq("verification_status", "pending")
 				.order("created_at", { ascending: false });
+
+			if (pendingError) console.error("Pending fetch error:", pendingError);
+			console.log("Pending professionals:", pending); // 👈 remove after confirming docs show
 
 			setPendingProfessionals(pending || []);
 			setLoading(false);
@@ -108,16 +117,24 @@ export default function AdminDashboard() {
 		return labels[type] || type;
 	};
 
-	const getDocumentUrl = async (path: string) => {
-		const { data } = await supabase.storage
-			.from("verification-documents")
-			.createSignedUrl(path, 60 * 60); // 1 hour
-		return data?.signedUrl;
-	};
+	const handleViewDocument = async (pathOrUrl: string) => {
+		// Defensive: strip full URL if accidentally stored (shouldn't happen but just in case)
+		let path = pathOrUrl;
+		if (pathOrUrl.includes("/storage/v1/object/")) {
+			const parts = pathOrUrl.split("/verification-documents/");
+			path = parts[1] || pathOrUrl;
+		}
 
-	const handleViewDocument = async (path: string) => {
-		const url = await getDocumentUrl(path);
-		if (url) window.open(url, "_blank");
+		const { data, error } = await supabase.storage
+			.from("verification-documents")
+			.createSignedUrl(path, 60 * 60);
+
+		if (data?.signedUrl) {
+			window.open(data.signedUrl, "_blank");
+		} else {
+			console.error("Signed URL error:", error);
+			alert("Could not load document. Check console for details.");
+		}
 	};
 
 	const handleVerify = async (professionalId: string, action: "verified" | "rejected") => {
@@ -134,10 +151,12 @@ export default function AdminDashboard() {
 			setStats(prev => ({
 				...prev,
 				pendingVerifications: prev.pendingVerifications - 1,
-				totalProfessionals: action === "verified" ? prev.totalProfessionals : prev.totalProfessionals,
 			}));
 			setMessage(action === "verified" ? "Professional verified successfully!" : "Professional rejected.");
 			setTimeout(() => setMessage(""), 3000);
+		} else {
+			console.error("Verify error:", error);
+			setMessage("Something went wrong. Check console.");
 		}
 
 		setActionLoading(null);
@@ -289,21 +308,25 @@ export default function AdminDashboard() {
 
 											{/* Document Buttons */}
 											<div className="flex gap-3 flex-wrap">
-												{prof.id_document_url && (
+												{prof.id_document_url ? (
 													<button
 														onClick={() => handleViewDocument(prof.id_document_url)}
 														className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-400 text-sm font-medium px-4 py-2 rounded-xl transition-colors border border-blue-200 dark:border-blue-800"
 													>
 														🪪 View ID Document
 													</button>
+												) : (
+													<span className="text-xs text-gray-400 dark:text-gray-600 italic">No ID document uploaded</span>
 												)}
-												{prof.license_url && (
+												{prof.license_url ? (
 													<button
 														onClick={() => handleViewDocument(prof.license_url)}
 														className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-400 text-sm font-medium px-4 py-2 rounded-xl transition-colors border border-purple-200 dark:border-purple-800"
 													>
 														📜 View License
 													</button>
+												) : (
+													<span className="text-xs text-gray-400 dark:text-gray-600 italic">No license uploaded</span>
 												)}
 											</div>
 										</div>
