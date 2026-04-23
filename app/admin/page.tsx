@@ -69,7 +69,6 @@ export default function AdminDashboard() {
 				pendingVerifications: pendingCount || 0,
 			});
 
-			// Explicit column selection to avoid RLS silently nulling fields
 			const { data: pending, error: pendingError } = await supabase
 				.from("professional_profiles")
 				.select(`
@@ -87,7 +86,6 @@ export default function AdminDashboard() {
 				.order("created_at", { ascending: false });
 
 			if (pendingError) console.error("Pending fetch error:", pendingError);
-			console.log("Pending professionals:", pending); // 👈 remove after confirming docs show
 
 			setPendingProfessionals(pending || []);
 			setLoading(false);
@@ -118,7 +116,6 @@ export default function AdminDashboard() {
 	};
 
 	const handleViewDocument = async (pathOrUrl: string) => {
-		// Defensive: strip full URL if accidentally stored (shouldn't happen but just in case)
 		let path = pathOrUrl;
 		if (pathOrUrl.includes("/storage/v1/object/")) {
 			const parts = pathOrUrl.split("/verification-documents/");
@@ -137,7 +134,7 @@ export default function AdminDashboard() {
 		}
 	};
 
-	const handleVerify = async (professionalId: string, action: "verified" | "rejected") => {
+	const handleVerify = async (professionalId: string, action: "verified" | "rejected", prof: any) => {
 		setActionLoading(professionalId);
 		setMessage("");
 
@@ -146,19 +143,36 @@ export default function AdminDashboard() {
 			.update({ verification_status: action })
 			.eq("id", professionalId);
 
-		if (!error) {
-			setPendingProfessionals(prev => prev.filter(p => p.id !== professionalId));
-			setStats(prev => ({
-				...prev,
-				pendingVerifications: prev.pendingVerifications - 1,
-			}));
-			setMessage(action === "verified" ? "Professional verified successfully!" : "Professional rejected.");
-			setTimeout(() => setMessage(""), 3000);
-		} else {
+		if (error) {
 			console.error("Verify error:", error);
 			setMessage("Something went wrong. Check console.");
+			setActionLoading(null);
+			return;
 		}
 
+		// On approval: delete license file from storage to save space
+		// License number is already stored in the DB so the file is redundant
+		if (action === "verified" && prof.license_url) {
+			let licensePath = prof.license_url;
+			if (prof.license_url.includes("/storage/v1/object/")) {
+				const parts = prof.license_url.split("/verification-documents/");
+				licensePath = parts[1] || prof.license_url;
+			}
+			const { error: deleteError } = await supabase.storage
+				.from("verification-documents")
+				.remove([licensePath]);
+			if (deleteError) {
+				console.warn("License file delete failed (non-critical):", deleteError);
+			}
+		}
+
+		setPendingProfessionals(prev => prev.filter(p => p.id !== professionalId));
+		setStats(prev => ({
+			...prev,
+			pendingVerifications: prev.pendingVerifications - 1,
+		}));
+		setMessage(action === "verified" ? "Professional verified! License certificate deleted from storage." : "Professional rejected.");
+		setTimeout(() => setMessage(""), 4000);
 		setActionLoading(null);
 	};
 
@@ -203,7 +217,7 @@ export default function AdminDashboard() {
 
 				{message && (
 					<div className={`rounded-xl p-4 mb-6 text-sm font-medium ${
-						message.includes("verified")
+						message.includes("verified") || message.includes("deleted")
 							? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
 							: "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
 					}`}>
@@ -288,14 +302,12 @@ export default function AdminDashboard() {
 														{getProfessionLabel(prof.profession_type)}
 													</p>
 												</div>
-												{prof.license_number && (
-													<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-														<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">License</p>
-														<p className="text-sm font-medium text-gray-900 dark:text-white">
-															{prof.license_number}
-														</p>
-													</div>
-												)}
+												<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+													<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">License Number</p>
+													<p className="text-sm font-medium text-gray-900 dark:text-white">
+														{prof.license_number || <span className="text-gray-400 italic">Not provided</span>}
+													</p>
+												</div>
 												{prof.years_experience > 0 && (
 													<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
 														<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Experience</p>
@@ -329,19 +341,23 @@ export default function AdminDashboard() {
 													<span className="text-xs text-gray-400 dark:text-gray-600 italic">No license uploaded</span>
 												)}
 											</div>
+
+											<p className="text-xs text-gray-400 dark:text-gray-600 mt-3 italic">
+												💡 Approving will delete the license certificate from storage (license number is saved in DB)
+											</p>
 										</div>
 
 										{/* Approve / Reject */}
 										<div className="flex flex-col gap-2 shrink-0">
 											<button
-												onClick={() => handleVerify(prof.id, "verified")}
+												onClick={() => handleVerify(prof.id, "verified", prof)}
 												disabled={actionLoading === prof.id}
 												className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-sm font-semibold px-6 py-2 rounded-xl transition-colors"
 											>
 												{actionLoading === prof.id ? "Processing..." : "✓ Approve"}
 											</button>
 											<button
-												onClick={() => handleVerify(prof.id, "rejected")}
+												onClick={() => handleVerify(prof.id, "rejected", prof)}
 												disabled={actionLoading === prof.id}
 												className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 text-sm font-semibold px-6 py-2 rounded-xl transition-colors"
 											>
