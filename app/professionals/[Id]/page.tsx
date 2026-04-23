@@ -10,8 +10,6 @@ export default function ProfessionalProfilePage() {
 	const params = useParams();
 	const supabase = createClient();
 
-	const id = params?.id as string;
-
 	const [prof, setProf] = useState<any>(null);
 	const [profile, setProfile] = useState<any>(null);
 	const [viewerRole, setViewerRole] = useState<string>("");
@@ -59,7 +57,9 @@ export default function ProfessionalProfilePage() {
 		: null;
 
 	useEffect(() => {
-		if (!id || id === "undefined") return;
+		const id = params?.id as string;
+
+		if (!id) return;
 
 		const getData = async () => {
 			const { data: { user } } = await supabase.auth.getUser();
@@ -75,17 +75,18 @@ export default function ProfessionalProfilePage() {
 
 			setViewerRole(viewerProfile?.role || "");
 
-			const { data: profData } = await supabase
-				.from("professional_profiles")
-				.select("*")
-				.eq("id", id)
-				.maybeSingle();
-
-			const { data: profileData } = await supabase
-				.from("profiles")
-				.select("full_name, country, email")
-				.eq("id", id)
-				.maybeSingle();
+			const [{ data: profData }, { data: profileData }] = await Promise.all([
+				supabase
+					.from("professional_profiles")
+					.select("*")
+					.eq("id", id)
+					.maybeSingle(),
+				supabase
+					.from("profiles")
+					.select("full_name, country, email")
+					.eq("id", id)
+					.maybeSingle(),
+			]);
 
 			if (!profileData) {
 				setNotFound(true);
@@ -129,9 +130,10 @@ export default function ProfessionalProfilePage() {
 		};
 
 		getData();
-	}, [id]);
+	}, [params]);
 
 	const handleSubmitReview = async () => {
+		const id = params?.id as string;
 		if (!rating || !selectedContract) return;
 		setSubmitting(true);
 
@@ -381,7 +383,6 @@ export default function ProfessionalProfilePage() {
 					<h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
 						Reviews {reviews.length > 0 && `(${reviews.length})`}
 					</h3>
-
 					{reviews.length === 0 ? (
 						<p className="text-gray-500 dark:text-gray-400 text-sm">No reviews yet.</p>
 					) : (
