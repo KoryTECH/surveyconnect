@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { MessageSquare, MessageSquareOff, FileCheck } from "lucide-react";
 
 export default function ClientContractsPage() {
 	const router = useRouter();
@@ -20,11 +21,7 @@ export default function ClientContractsPage() {
 
 			const { data } = await supabase
 				.from("contracts")
-				.select(`
-					*,
-					jobs(title, description),
-					profiles!contracts_professional_id_fkey(full_name, email)
-				`)
+				.select(`*, jobs(title, description), profiles!contracts_professional_id_fkey(full_name, email)`)
 				.eq("client_id", user.id)
 				.in("status", ["active", "completed"])
 				.order("created_at", { ascending: false });
@@ -54,29 +51,19 @@ export default function ClientContractsPage() {
 				return;
 			}
 
-			// Update local state to reflect payment released
 			setContracts((prev) =>
-				prev.map((c) =>
-					c.id === contractId
-						? { ...c, payment_released_at: new Date().toISOString() }
-						: c,
-				),
+				prev.map((c) => c.id === contractId ? { ...c, payment_released_at: new Date().toISOString() } : c)
 			);
 			setMessage("Payment released successfully! Messaging has been closed.");
-		} catch (err) {
+		} catch {
 			setMessage("Something went wrong. Please try again.");
 		} finally {
 			setReleasing(null);
 		}
 	};
 
-	const formatDate = (date: string) => {
-		return new Date(date).toLocaleDateString("en-GB", {
-			day: "numeric",
-			month: "short",
-			year: "numeric",
-		});
-	};
+	const formatDate = (date: string) =>
+		new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 	if (loading) {
 		return (
@@ -92,10 +79,7 @@ export default function ClientContractsPage() {
 				<h1 className="text-xl font-bold text-gray-900 dark:text-white">
 					Survey<span className="text-green-600">ConnectHub</span>
 				</h1>
-				<Link
-					href="/dashboard/client"
-					className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-				>
+				<Link href="/dashboard/client" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
 					Back to Dashboard
 				</Link>
 			</nav>
@@ -120,6 +104,9 @@ export default function ClientContractsPage() {
 
 				{contracts.length === 0 ? (
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-100 dark:border-gray-800">
+						<div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+							<FileCheck className="w-7 h-7 text-gray-400" />
+						</div>
 						<h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No contracts yet</h3>
 						<p className="text-gray-500 dark:text-gray-400 mb-6">Accept a proposal and pay to start a contract</p>
 						<Link href="/dashboard/client/jobs" className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
@@ -129,7 +116,6 @@ export default function ClientContractsPage() {
 				) : (
 					<div className="space-y-4">
 						{contracts.map((contract) => {
-							// Messaging is locked ONLY when payment has been released
 							const isChatLocked = contract.payment_released_at !== null;
 							const isPaid = contract.payment_released_at !== null;
 
@@ -157,11 +143,7 @@ export default function ClientContractsPage() {
 														? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
 														: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
 												}`}>
-													{isPaid
-														? "Paid"
-														: contract.status === "completed"
-														? "Awaiting Approval"
-														: "In Progress"}
+													{isPaid ? "Paid" : contract.status === "completed" ? "Awaiting Approval" : "In Progress"}
 												</span>
 											</div>
 
@@ -191,12 +173,9 @@ export default function ClientContractsPage() {
 											</div>
 
 											<div className="space-y-2">
-												{/* Message button — locked only after payment released */}
 												{isChatLocked ? (
 													<span className="flex items-center justify-center gap-2 w-full bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 text-sm font-semibold px-4 py-2 rounded-xl cursor-not-allowed">
-														<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z" />
-														</svg>
+														<MessageSquareOff className="w-4 h-4" />
 														Chat Closed
 													</span>
 												) : (
@@ -204,14 +183,11 @@ export default function ClientContractsPage() {
 														href={`/messages/${contract.id}`}
 														className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
 													>
-														<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z" />
-														</svg>
+														<MessageSquare className="w-4 h-4" />
 														Open Chat
 													</Link>
 												)}
 
-												{/* Release payment — only when completed and not yet paid */}
 												{contract.status === "completed" && !isPaid && (
 													<button
 														onClick={() => handleReleasePayment(contract.id)}

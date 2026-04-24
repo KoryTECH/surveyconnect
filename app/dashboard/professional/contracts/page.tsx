@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { MessageSquare, MessageSquareOff, FileCheck } from "lucide-react";
 
 export default function ProfessionalContractsPage() {
 	const router = useRouter();
@@ -19,11 +20,7 @@ export default function ProfessionalContractsPage() {
 
 			const { data } = await supabase
 				.from("contracts")
-				.select(`
-					*,
-					jobs(title, description, location_city, location_country),
-					profiles!contracts_client_id_fkey(full_name, email)
-				`)
+				.select(`*, jobs(title, description, location_city, location_country), profiles!contracts_client_id_fkey(full_name, email)`)
 				.eq("professional_id", user.id)
 				.in("status", ["active", "completed"])
 				.order("created_at", { ascending: false });
@@ -37,25 +34,13 @@ export default function ProfessionalContractsPage() {
 	const handleMarkComplete = async (contractId: string) => {
 		setCompleting(contractId);
 		const supabase = createClient();
-
-		await supabase
-			.from("contracts")
-			.update({ status: "completed" })
-			.eq("id", contractId);
-
-		setContracts((prev) =>
-			prev.map((c) => c.id === contractId ? { ...c, status: "completed" } : c),
-		);
+		await supabase.from("contracts").update({ status: "completed" }).eq("id", contractId);
+		setContracts((prev) => prev.map((c) => c.id === contractId ? { ...c, status: "completed" } : c));
 		setCompleting(null);
 	};
 
-	const formatDate = (date: string) => {
-		return new Date(date).toLocaleDateString("en-GB", {
-			day: "numeric",
-			month: "short",
-			year: "numeric",
-		});
-	};
+	const formatDate = (date: string) =>
+		new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 	if (loading) {
 		return (
@@ -71,10 +56,7 @@ export default function ProfessionalContractsPage() {
 				<h1 className="text-xl font-bold text-gray-900 dark:text-white">
 					Survey<span className="text-green-600">ConnectHub</span>
 				</h1>
-				<Link
-					href="/dashboard/professional"
-					className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-				>
+				<Link href="/dashboard/professional" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
 					Back to Dashboard
 				</Link>
 			</nav>
@@ -89,6 +71,9 @@ export default function ProfessionalContractsPage() {
 
 				{contracts.length === 0 ? (
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-100 dark:border-gray-800">
+						<div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+							<FileCheck className="w-7 h-7 text-gray-400" />
+						</div>
 						<h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No active contracts</h3>
 						<p className="text-gray-500 dark:text-gray-400 mb-6">
 							When a client accepts your proposal and pays, your contract will appear here
@@ -100,7 +85,6 @@ export default function ProfessionalContractsPage() {
 				) : (
 					<div className="space-y-4">
 						{contracts.map((contract) => {
-							// Messaging locked ONLY after client releases payment
 							const isChatLocked = contract.payment_released_at !== null;
 
 							return (
@@ -127,11 +111,7 @@ export default function ProfessionalContractsPage() {
 														? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
 														: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
 												}`}>
-													{isChatLocked
-														? "Paid"
-														: contract.status === "completed"
-														? "Awaiting Payment"
-														: "Active"}
+													{isChatLocked ? "Paid" : contract.status === "completed" ? "Awaiting Payment" : "Active"}
 												</span>
 											</div>
 
@@ -140,9 +120,7 @@ export default function ProfessionalContractsPage() {
 											</p>
 
 											<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
-												<span>
-													{[contract.jobs?.location_city, contract.jobs?.location_country].filter(Boolean).join(", ")}
-												</span>
+												<span>{[contract.jobs?.location_city, contract.jobs?.location_country].filter(Boolean).join(", ")}</span>
 												<span>Started {formatDate(contract.start_date)}</span>
 											</div>
 
@@ -167,7 +145,6 @@ export default function ProfessionalContractsPage() {
 											</div>
 
 											<div className="space-y-2">
-												{/* Mark complete — only when active */}
 												{contract.status === "active" && !isChatLocked && (
 													<button
 														onClick={() => handleMarkComplete(contract.id)}
@@ -178,12 +155,9 @@ export default function ProfessionalContractsPage() {
 													</button>
 												)}
 
-												{/* Message button — locked ONLY after payment released */}
 												{isChatLocked ? (
 													<span className="flex items-center justify-center gap-2 w-full bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 text-sm font-semibold px-4 py-2 rounded-xl cursor-not-allowed">
-														<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z" />
-														</svg>
+														<MessageSquareOff className="w-4 h-4" />
 														Chat Closed
 													</span>
 												) : (
@@ -191,9 +165,7 @@ export default function ProfessionalContractsPage() {
 														href={`/messages/${contract.id}`}
 														className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
 													>
-														<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 16V8a2 2 0 00-2-2H5a2 2 0 002 2h14a2 2 0 002-2z" />
-														</svg>
+														<MessageSquare className="w-4 h-4" />
 														Open Chat
 													</Link>
 												)}
