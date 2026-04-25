@@ -191,7 +191,12 @@ export default function MessagesPage() {
     ? '/dashboard/professional/contracts'
     : '/dashboard/client/contracts'
 
-  const isCompleted = contract?.status === 'completed'
+  // Chat is ONLY locked after payment has been released to the professional.
+  // While the job is marked complete but awaiting payment release, both
+  // parties can still communicate freely — that's when they need it most.
+  const isChatLocked = contract?.payment_released_at !== null && contract?.payment_released_at !== undefined
+
+  const isAwaitingPayment = contract?.status === 'completed' && !isChatLocked
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
@@ -213,9 +218,13 @@ export default function MessagesPage() {
             <p className="text-xs text-gray-500 dark:text-gray-400">{contract?.jobs?.title}</p>
           </div>
         </div>
-        {isCompleted ? (
+        {isChatLocked ? (
           <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs font-medium px-3 py-1 rounded-full">
-            ✅ Completed
+            🔒 Payment Released
+          </span>
+        ) : isAwaitingPayment ? (
+          <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs font-medium px-3 py-1 rounded-full">
+            ⏳ Awaiting Payment Release
           </span>
         ) : (
           <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-3 py-1 rounded-full">
@@ -272,9 +281,9 @@ export default function MessagesPage() {
       </div>
 
       <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-6 py-4 shrink-0">
-        {isCompleted ? (
+        {isChatLocked ? (
           <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-2">
-            This contract is completed. Chat is read-only.
+            Payment has been released. This conversation is now closed.
           </div>
         ) : (
           <div className="flex items-end gap-3">
