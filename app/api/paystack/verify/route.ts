@@ -41,11 +41,30 @@ export async function GET(request: NextRequest) {
 
 		const { data: contract } = await supabase
 			.from("contracts")
-			.select("job_id, application_id, status")
+			.select("job_id, application_id, status, ngn_amount_paid")
 			.eq("id", contractId)
 			.single();
 
 		if (!contract) {
+			return NextResponse.redirect(
+				new URL("/dashboard/client?payment=failed", request.url),
+			);
+		}
+
+		const expectedAmountKobo = Number(contract.ngn_amount_paid || 0) * 100;
+		const paidAmountKobo = Number(paystackData.data.amount || 0);
+
+		if (
+			expectedAmountKobo <= 0 ||
+			paidAmountKobo !== expectedAmountKobo ||
+			paystackData.data.currency !== "NGN"
+		) {
+			console.error("Payment amount mismatch on verify:", {
+				contractId,
+				expectedAmountKobo,
+				paidAmountKobo,
+				currency: paystackData.data.currency,
+			});
 			return NextResponse.redirect(
 				new URL("/dashboard/client?payment=failed", request.url),
 			);

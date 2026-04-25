@@ -78,7 +78,7 @@ export default function PaymentPage() {
 	}
 
 	const agreedBudget = Number(contract?.agreed_budget ?? 0);
-	const clientFee = agreedBudget * 0.08;
+	const clientFee = agreedBudget * 0.05;
 	const clientTotal = agreedBudget + clientFee;
 
 	if (loading) {
@@ -151,7 +151,7 @@ export default function PaymentPage() {
 							</div>
 							<div className="flex justify-between text-sm">
 								<span className="text-gray-600 dark:text-gray-400">
-									Service Fee (8%)
+									Service Fee (5%)
 								</span>
 								<span className="font-medium text-gray-900 dark:text-white">
 									+${clientFee.toFixed(2)}

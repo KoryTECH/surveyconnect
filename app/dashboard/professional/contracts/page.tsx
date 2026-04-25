@@ -15,12 +15,19 @@ export default function ProfessionalContractsPage() {
 	useEffect(() => {
 		const getData = async () => {
 			const supabase = createClient();
-			const { data: { user } } = await supabase.auth.getUser();
-			if (!user) { router.push("/login"); return; }
+			const {
+				data: { user },
+			} = await supabase.auth.getUser();
+			if (!user) {
+				router.push("/login");
+				return;
+			}
 
 			const { data } = await supabase
 				.from("contracts")
-				.select(`*, jobs(title, description, location_city, location_country), profiles!contracts_client_id_fkey(full_name, email)`)
+				.select(
+					`*, jobs(title, description, location_city, location_country), profiles!contracts_client_id_fkey(full_name, email)`,
+				)
 				.eq("professional_id", user.id)
 				.in("status", ["active", "completed"])
 				.order("created_at", { ascending: false });
@@ -34,13 +41,24 @@ export default function ProfessionalContractsPage() {
 	const handleMarkComplete = async (contractId: string) => {
 		setCompleting(contractId);
 		const supabase = createClient();
-		await supabase.from("contracts").update({ status: "completed" }).eq("id", contractId);
-		setContracts((prev) => prev.map((c) => c.id === contractId ? { ...c, status: "completed" } : c));
+		await supabase
+			.from("contracts")
+			.update({ status: "completed" })
+			.eq("id", contractId);
+		setContracts((prev) =>
+			prev.map((c) =>
+				c.id === contractId ? { ...c, status: "completed" } : c,
+			),
+		);
 		setCompleting(null);
 	};
 
 	const formatDate = (date: string) =>
-		new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+		new Date(date).toLocaleDateString("en-GB", {
+			day: "numeric",
+			month: "short",
+			year: "numeric",
+		});
 
 	if (loading) {
 		return (
@@ -56,14 +74,19 @@ export default function ProfessionalContractsPage() {
 				<h1 className="text-xl font-bold text-gray-900 dark:text-white">
 					Survey<span className="text-green-600">ConnectHub</span>
 				</h1>
-				<Link href="/dashboard/professional" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+				<Link
+					href="/dashboard/professional"
+					className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+				>
 					Back to Dashboard
 				</Link>
 			</nav>
 
 			<div className="max-w-4xl mx-auto px-6 py-8">
 				<div className="mb-8">
-					<h2 className="text-2xl font-bold text-gray-900 dark:text-white">My Contracts</h2>
+					<h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+						My Contracts
+					</h2>
 					<p className="text-gray-500 dark:text-gray-400 mt-1">
 						{contracts.length} contract{contracts.length !== 1 ? "s" : ""}
 					</p>
@@ -74,11 +97,17 @@ export default function ProfessionalContractsPage() {
 						<div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
 							<FileCheck className="w-7 h-7 text-gray-400" />
 						</div>
-						<h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No active contracts</h3>
+						<h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+							No active contracts
+						</h3>
 						<p className="text-gray-500 dark:text-gray-400 mb-6">
-							When a client accepts your proposal and pays, your contract will appear here
+							When a client accepts your proposal and pays, your contract will
+							appear here
 						</p>
-						<Link href="/jobs" className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+						<Link
+							href="/jobs"
+							className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+						>
 							Browse Jobs
 						</Link>
 					</div>
@@ -94,8 +123,8 @@ export default function ProfessionalContractsPage() {
 										isChatLocked
 											? "border-gray-200 dark:border-gray-700 opacity-75"
 											: contract.status === "completed"
-											? "border-yellow-300 dark:border-yellow-700"
-											: "border-green-300 dark:border-green-700"
+												? "border-yellow-300 dark:border-yellow-700"
+												: "border-green-300 dark:border-green-700"
 									}`}
 								>
 									<div className="flex items-start justify-between gap-4">
@@ -104,14 +133,20 @@ export default function ProfessionalContractsPage() {
 												<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
 													{contract.jobs?.title}
 												</h3>
-												<span className={`text-xs font-medium px-2 py-1 rounded-full ${
-													isChatLocked
-														? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+												<span
+													className={`text-xs font-medium px-2 py-1 rounded-full ${
+														isChatLocked
+															? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+															: contract.status === "completed"
+																? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
+																: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+													}`}
+												>
+													{isChatLocked
+														? "Paid"
 														: contract.status === "completed"
-														? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
-														: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-												}`}>
-													{isChatLocked ? "Paid" : contract.status === "completed" ? "Awaiting Payment" : "Active"}
+															? "Awaiting Payment"
+															: "Active"}
 												</span>
 											</div>
 
@@ -120,14 +155,22 @@ export default function ProfessionalContractsPage() {
 											</p>
 
 											<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
-												<span>{[contract.jobs?.location_city, contract.jobs?.location_country].filter(Boolean).join(", ")}</span>
+												<span>
+													{[
+														contract.jobs?.location_city,
+														contract.jobs?.location_country,
+													]
+														.filter(Boolean)
+														.join(", ")}
+												</span>
 												<span>Started {formatDate(contract.start_date)}</span>
 											</div>
 
 											{contract.status === "completed" && !isChatLocked && (
 												<div className="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
 													<p className="text-sm text-blue-700 dark:text-blue-400 font-medium">
-														Job marked complete. Waiting for the client to review and release payment.
+														Job marked complete. Waiting for the client to
+														review and release payment.
 													</p>
 												</div>
 											)}
@@ -138,9 +181,12 @@ export default function ProfessionalContractsPage() {
 												<p className="text-2xl font-bold text-gray-900 dark:text-white">
 													${Number(contract.agreed_budget).toLocaleString()}
 												</p>
-												<p className="text-xs text-gray-400 dark:text-gray-500">agreed budget</p>
+												<p className="text-xs text-gray-400 dark:text-gray-500">
+													agreed budget
+												</p>
 												<p className="text-sm font-medium text-green-600 dark:text-green-400 mt-1">
-													You receive: ${(Number(contract.agreed_budget) * 0.93).toFixed(2)}
+													You receive: $
+													{(Number(contract.agreed_budget) * 0.95).toFixed(2)}
 												</p>
 											</div>
 
@@ -151,7 +197,9 @@ export default function ProfessionalContractsPage() {
 														disabled={completing === contract.id}
 														className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
 													>
-														{completing === contract.id ? "Marking..." : "Mark as Complete"}
+														{completing === contract.id
+															? "Marking..."
+															: "Mark as Complete"}
 													</button>
 												)}
 

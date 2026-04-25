@@ -48,28 +48,6 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const { data: releaseLockRows, error: releaseLockError } = await supabase
-			.from("contracts")
-			.update({ payment_released_at: new Date().toISOString() })
-			.eq("id", contractId)
-			.is("payment_released_at", null)
-			.select("id");
-
-		if (releaseLockError) {
-			console.error("Failed to acquire release lock:", releaseLockError);
-			return NextResponse.json(
-				{ error: "Could not release payment" },
-				{ status: 500 },
-			);
-		}
-
-		if (!releaseLockRows || releaseLockRows.length === 0) {
-			return NextResponse.json(
-				{ error: "Payment already released" },
-				{ status: 409 },
-			);
-		}
-
 		const professional = contract.profiles;
 
 		// Check if professional has bank details
@@ -83,18 +61,29 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		if (!contract.ngn_amount_paid) {
+		if (!contract.exchange_rate_used) {
 			return NextResponse.json(
-				{ error: "Contract payment amount not initialized" },
+				{ error: "Contract exchange rate not initialized" },
 				{ status: 400 },
 			);
 		}
 
-		// Professional receives 93% of the stored NGN amount paid by client.
+		if (!contract.agreed_budget) {
+			return NextResponse.json(
+				{ error: "Contract agreed budget not available" },
+				{ status: 400 },
+			);
+		}
+
+		// Professional receives 95% of agreed budget, converted using stored exchange rate.
+		const exchangeRate = Number(contract.exchange_rate_used);
+		const agreedBudget = Number(contract.agreed_budget);
 		const professionalAmountNgn = Math.round(
-			Number(contract.ngn_amount_paid) * 0.93,
+			agreedBudget * exchangeRate * 0.95,
 		);
 		const professionalAmountKobo = professionalAmountNgn * 100;
+		const professionalReceivesUsd = Number((agreedBudget * 0.95).toFixed(2));
+		const platformFeeUsd = Number((agreedBudget * 0.1).toFixed(2));
 
 		let recipientCode = professional.paystack_recipient_code;
 
@@ -136,6 +125,29 @@ export async function POST(request: NextRequest) {
 				.eq("id", contract.professional_id);
 		}
 
+		const releaseTimestamp = new Date().toISOString();
+		const { data: releaseLockRows, error: releaseLockError } = await supabase
+			.from("contracts")
+			.update({ payment_released_at: releaseTimestamp })
+			.eq("id", contractId)
+			.is("payment_released_at", null)
+			.select("id");
+
+		if (releaseLockError) {
+			console.error("Failed to acquire release lock:", releaseLockError);
+			return NextResponse.json(
+				{ error: "Could not release payment" },
+				{ status: 500 },
+			);
+		}
+
+		if (!releaseLockRows || releaseLockRows.length === 0) {
+			return NextResponse.json(
+				{ error: "Payment already released" },
+				{ status: 409 },
+			);
+		}
+
 		// Initiate transfer
 		const transferResponse = await fetch("https://api.paystack.co/transfer", {
 			method: "POST",
@@ -154,8 +166,20 @@ export async function POST(request: NextRequest) {
 		const transferData = await transferResponse.json();
 
 		if (!transferData.status) {
+			await supabase
+				.from("contracts")
+				.update({ payment_released_at: null })
+				.eq("id", contractId);
 			return NextResponse.json({ error: "Transfer failed" }, { status: 500 });
 		}
+
+		await supabase
+			.from("contracts")
+			.update({
+				professional_receives: professionalReceivesUsd,
+				platform_fee: platformFeeUsd,
+			})
+			.eq("id", contractId);
 
 		return NextResponse.json({
 			success: true,

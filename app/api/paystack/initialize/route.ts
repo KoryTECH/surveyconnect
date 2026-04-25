@@ -71,9 +71,9 @@ export async function POST(request: NextRequest) {
 
 		const exchangeRate = exchangeData.conversion_rate;
 
-		// 8% client fee on top of agreed budget
+		// 5% client fee on top of agreed budget
 		const agreedBudget = Number(contract.agreed_budget);
-		const clientTotal = agreedBudget * 1.08;
+		const clientTotal = agreedBudget * 1.05;
 		const ngnAmount = Math.round(clientTotal * exchangeRate);
 
 		// Paystack expects amount in kobo (NGN × 100)

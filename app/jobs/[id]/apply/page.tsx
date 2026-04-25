@@ -128,7 +128,7 @@ export default function ApplyPage() {
 	};
 
 	const professionalReceives = proposedRate
-		? (parseFloat(proposedRate) * 0.93).toLocaleString(undefined, {
+		? (parseFloat(proposedRate) * 0.95).toLocaleString(undefined, {
 				minimumFractionDigits: 2,
 				maximumFractionDigits: 2,
 			})
@@ -265,7 +265,7 @@ export default function ApplyPage() {
 								/>
 							</div>
 							<p className="text-xs text-gray-400 dark:text-gray-500">
-								SurveyConnectHub takes 7% commission. You&apos;ll receive{" "}
+								SurveyConnectHub takes 5% commission. You&apos;ll receive{" "}
 								<span className="text-emerald-600 dark:text-emerald-400 font-medium">
 									${professionalReceives}
 								</span>
@@ -274,10 +274,15 @@ export default function ApplyPage() {
 
 						{/* Availability */}
 						<div className="space-y-2">
-							<label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+							<label
+								htmlFor="availability-date"
+								className="text-sm text-gray-700 dark:text-gray-300 font-medium"
+							>
 								Available to Start <span className="text-red-400">*</span>
 							</label>
 							<input
+								id="availability-date"
+								aria-label="Available to Start"
 								type="date"
 								value={availability}
 								onChange={(e) => setAvailability(e.target.value)}

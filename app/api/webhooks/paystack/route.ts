@@ -43,9 +43,26 @@ export async function POST(request: NextRequest) {
 			// Double confirm contract is active (verify route may have already done this)
 			const { data: contract } = await supabase
 				.from("contracts")
-				.select("status")
+				.select("status, ngn_amount_paid")
 				.eq("id", contractId)
 				.single();
+
+			const expectedAmountKobo = Number(contract?.ngn_amount_paid || 0) * 100;
+			const paidAmountKobo = Number(event.data.amount || 0);
+
+			if (
+				expectedAmountKobo <= 0 ||
+				paidAmountKobo !== expectedAmountKobo ||
+				event.data.currency !== "NGN"
+			) {
+				console.error("Payment amount mismatch on webhook:", {
+					contractId,
+					expectedAmountKobo,
+					paidAmountKobo,
+					currency: event.data.currency,
+				});
+				return NextResponse.json({ received: true });
+			}
 
 			if (contract && contract.status === "pending") {
 				// Only update if still pending (avoid duplicate updates)

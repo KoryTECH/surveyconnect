@@ -95,7 +95,7 @@ export default function LandingPage() {
 							<p className="text-gray-500 mt-1 text-sm">Verified Pros</p>
 						</div>
 						<div>
-							<p className="text-4xl font-bold text-green-600">93%</p>
+							<p className="text-4xl font-bold text-green-600">95%</p>
 							<p className="text-gray-500 mt-1 text-sm">Goes to Professional</p>
 						</div>
 						<div>
@@ -178,7 +178,7 @@ export default function LandingPage() {
 									{
 										n: 3,
 										title: "Get Paid",
-										desc: "Deliver your work and receive 85% directly to your account",
+										desc: "Deliver your work and receive 95% directly to your account",
 									},
 								].map((s) => (
 									<div
