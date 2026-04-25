@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -10,6 +11,11 @@ export async function POST(request: NextRequest) {
 
 		if (!user) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
+		const allowed = checkRateLimit(`transfer:${user.id}`, 3, 60_000);
+		if (!allowed) {
+			return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 		}
 
 		const { contractId } = await request.json();
@@ -32,12 +38,35 @@ export async function POST(request: NextRequest) {
 			.eq("id", contractId)
 			.eq("client_id", user.id)
 			.eq("status", "completed")
+			.is("payment_released_at", null)
 			.single();
 
 		if (contractError || !contract) {
 			return NextResponse.json(
-				{ error: "Contract not found" },
+				{ error: "Contract not found or already paid" },
 				{ status: 404 },
+			);
+		}
+
+		const { data: releaseLockRows, error: releaseLockError } = await supabase
+			.from("contracts")
+			.update({ payment_released_at: new Date().toISOString() })
+			.eq("id", contractId)
+			.is("payment_released_at", null)
+			.select("id");
+
+		if (releaseLockError) {
+			console.error("Failed to acquire release lock:", releaseLockError);
+			return NextResponse.json(
+				{ error: "Could not release payment" },
+				{ status: 500 },
+			);
+		}
+
+		if (!releaseLockRows || releaseLockRows.length === 0) {
+			return NextResponse.json(
+				{ error: "Payment already released" },
+				{ status: 409 },
 			);
 		}
 
@@ -54,23 +83,17 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Fetch live exchange rate
-		let usdToNgn = 1600;
-		try {
-			const rateResponse = await fetch(
-				`https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/latest/USD`,
+		if (!contract.ngn_amount_paid) {
+			return NextResponse.json(
+				{ error: "Contract payment amount not initialized" },
+				{ status: 400 },
 			);
-			const rateData = await rateResponse.json();
-			if (rateData.result === "success") {
-				usdToNgn = rateData.conversion_rates.NGN;
-			}
-		} catch (err) {
-			console.error("Exchange rate fetch failed, using fallback");
 		}
 
-		// Professional receives 93% of agreed budget
-		const professionalAmountUsd = Number(contract.agreed_budget) * 0.93;
-		const professionalAmountNgn = Math.round(professionalAmountUsd * usdToNgn);
+		// Professional receives 93% of the stored NGN amount paid by client.
+		const professionalAmountNgn = Math.round(
+			Number(contract.ngn_amount_paid) * 0.93,
+		);
 		const professionalAmountKobo = professionalAmountNgn * 100;
 
 		let recipientCode = professional.paystack_recipient_code;
@@ -134,16 +157,10 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Transfer failed" }, { status: 500 });
 		}
 
-		// Update contract status to paid
-		await supabase
-			.from("contracts")
-			.update({ status: "completed" })
-			.eq("id", contractId);
-
 		return NextResponse.json({
 			success: true,
 			message: "Payment released successfully",
-			amount: professionalAmountUsd,
+			amount: professionalAmountNgn,
 		});
 	} catch (error) {
 		console.error("Transfer error:", error);
