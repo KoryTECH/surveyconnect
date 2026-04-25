@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PartyPopper } from "lucide-react";
 
 type Job = {
 	id: string;
@@ -207,8 +208,9 @@ export default function ApplyPage() {
 					</div>
 				) : success ? (
 					<div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center space-y-2">
-						<p className="text-emerald-600 dark:text-emerald-400 font-semibold text-lg">
-							Application Submitted! 🎉
+						<p className="text-emerald-600 dark:text-emerald-400 font-semibold text-lg inline-flex items-center gap-2">
+							<PartyPopper className="w-5 h-5" />
+							Application Submitted!
 						</p>
 						<p className="text-gray-500 dark:text-gray-400 text-sm">
 							Redirecting you back to jobs...

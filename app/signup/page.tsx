@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { Building2, Map } from "lucide-react";
 
 export default function SignupPage() {
 	const router = useRouter();
@@ -123,7 +124,9 @@ export default function SignupPage() {
 										: "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600"
 								}`}
 							>
-								<div className="text-2xl mb-1">🏢</div>
+								<div className="flex justify-center mb-1">
+									<Building2 className="w-6 h-6" />
+								</div>
 								<div className="font-semibold">Client</div>
 								<div className="text-xs mt-1">I need geospatial services</div>
 							</button>
@@ -139,7 +142,9 @@ export default function SignupPage() {
 										: "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600"
 								}`}
 							>
-								<div className="text-2xl mb-1">🗺️</div>
+								<div className="flex justify-center mb-1">
+									<Map className="w-6 h-6" />
+								</div>
 								<div className="font-semibold">Professional</div>
 								<div className="text-xs mt-1">I offer geospatial services</div>
 							</button>

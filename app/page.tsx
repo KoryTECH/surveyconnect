@@ -1,4 +1,20 @@
 import Link from "next/link";
+import {
+	Globe,
+	Lock,
+	Ruler,
+	Map,
+	Helicopter,
+	Camera,
+	Zap,
+	Satellite,
+	Building,
+	BarChart3,
+	Waves,
+	Pickaxe,
+	HardHat,
+	CheckCircle2,
+} from "lucide-react";
 
 export default function LandingPage() {
 	return (
@@ -34,8 +50,9 @@ export default function LandingPage() {
 			{/* Hero Section */}
 			<section className="bg-gradient-to-br from-green-50 to-white py-20 px-6">
 				<div className="max-w-4xl mx-auto text-center">
-					<div className="inline-block bg-green-100 text-green-700 text-sm font-semibold px-4 py-2 rounded-full mb-6">
-						🌍 Built for Africa — Going Global
+					<div className="inline-flex items-center gap-2 bg-green-100 text-green-700 text-sm font-semibold px-4 py-2 rounded-full mb-6">
+						<Globe className="w-4 h-4" />
+						Built for Africa - Going Global
 					</div>
 					<h2 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
 						The Marketplace for
@@ -78,11 +95,13 @@ export default function LandingPage() {
 							<p className="text-gray-500 mt-1 text-sm">Verified Pros</p>
 						</div>
 						<div>
-							<p className="text-4xl font-bold text-green-600">85%</p>
+							<p className="text-4xl font-bold text-green-600">93%</p>
 							<p className="text-gray-500 mt-1 text-sm">Goes to Professional</p>
 						</div>
 						<div>
-							<p className="text-4xl font-bold text-green-600">🔒</p>
+							<p className="flex justify-center text-green-600">
+								<Lock className="w-10 h-10" />
+							</p>
 							<p className="text-gray-500 mt-1 text-sm">Secure Escrow</p>
 						</div>
 					</div>
@@ -194,24 +213,26 @@ export default function LandingPage() {
 					</div>
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 						{[
-							{ icon: "📐", label: "Land Surveyors" },
-							{ icon: "🗺️", label: "GIS Analysts" },
-							{ icon: "🚁", label: "Drone Pilots" },
-							{ icon: "🗾", label: "Cartographers" },
-							{ icon: "📸", label: "Photogrammetrists" },
-							{ icon: "⚡", label: "LiDAR Specialists" },
-							{ icon: "🛰️", label: "Remote Sensing" },
-							{ icon: "🏙️", label: "Urban Planners" },
-							{ icon: "📊", label: "Spatial Scientists" },
-							{ icon: "🌊", label: "Hydrographic" },
-							{ icon: "⛏️", label: "Mining Surveyors" },
-							{ icon: "🏗️", label: "Construction" },
+							{ Icon: Ruler, label: "Land Surveyors" },
+							{ Icon: Map, label: "GIS Analysts" },
+							{ Icon: Helicopter, label: "Drone Pilots" },
+							{ Icon: Map, label: "Cartographers" },
+							{ Icon: Camera, label: "Photogrammetrists" },
+							{ Icon: Zap, label: "LiDAR Specialists" },
+							{ Icon: Satellite, label: "Remote Sensing" },
+							{ Icon: Building, label: "Urban Planners" },
+							{ Icon: BarChart3, label: "Spatial Scientists" },
+							{ Icon: Waves, label: "Hydrographic" },
+							{ Icon: Pickaxe, label: "Mining Surveyors" },
+							{ Icon: HardHat, label: "Construction" },
 						].map((item) => (
 							<div
 								key={item.label}
 								className="bg-gray-50 rounded-2xl p-4 text-center hover:bg-green-50 hover:border-green-200 border-2 border-transparent transition-all"
 							>
-								<div className="text-3xl mb-2">{item.icon}</div>
+								<div className="flex justify-center mb-2">
+									<item.Icon className="w-8 h-8 text-gray-700" />
+								</div>
 								<p className="text-sm font-medium text-gray-700">
 									{item.label}
 								</p>
@@ -232,17 +253,17 @@ export default function LandingPage() {
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 						{[
 							{
-								icon: "✅",
+								Icon: CheckCircle2,
 								title: "Verified Professionals",
 								desc: "Every professional is ID verified and license checked before they can work on your project",
 							},
 							{
-								icon: "🔒",
+								Icon: Lock,
 								title: "Secure Escrow Payments",
 								desc: "Your money is held safely until you approve the work. No risk of paying for nothing",
 							},
 							{
-								icon: "🌍",
+								Icon: Globe,
 								title: "Built for Africa",
 								desc: "Designed specifically for Africa with local payment options, growing globally",
 							},
@@ -251,7 +272,9 @@ export default function LandingPage() {
 								key={item.title}
 								className="bg-white rounded-2xl p-6 shadow-sm"
 							>
-								<div className="text-4xl mb-4">{item.icon}</div>
+								<div className="mb-4">
+									<item.Icon className="w-10 h-10 text-green-600" />
+								</div>
 								<h4 className="text-lg font-bold text-gray-900 mb-2">
 									{item.title}
 								</h4>

@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import {
+	Calendar,
+	CalendarDays,
+	CheckCircle2,
+	Inbox,
+	MapPin,
+	Users,
+	Wallet,
+} from "lucide-react";
 
 export default function JobApplicationsPage() {
 	const router = useRouter();
@@ -40,14 +49,16 @@ export default function JobApplicationsPage() {
 
 			const { data: apps } = await supabase
 				.from("job_applications")
-				.select(`
+				.select(
+					`
           *,
           profiles!job_applications_professional_id_fkey (
             full_name,
             country,
             email
           )
-        `)
+        `,
+				)
 				.eq("job_id", jobId)
 				.order("created_at", { ascending: false });
 
@@ -57,7 +68,10 @@ export default function JobApplicationsPage() {
 		getData();
 	}, [jobId]);
 
-	const handleAccept = async (applicationId: string, professionalId: string) => {
+	const handleAccept = async (
+		applicationId: string,
+		professionalId: string,
+	) => {
 		const supabase = createClient();
 		setAccepting(applicationId);
 
@@ -143,9 +157,20 @@ export default function JobApplicationsPage() {
 						{job?.description}
 					</p>
 					<div className="flex items-center gap-4 mt-3 text-xs text-gray-400 dark:text-gray-500">
-						<span>💰 ${job?.budget} {job?.budget_type}</span>
-						<span>📍 {[job?.location_city, job?.location_country].filter(Boolean).join(", ")}</span>
-						<span>👥 {applications.length} application{applications.length !== 1 ? "s" : ""}</span>
+						<span className="inline-flex items-center gap-1">
+							<Wallet className="w-3.5 h-3.5" /> ${job?.budget}{" "}
+							{job?.budget_type}
+						</span>
+						<span className="inline-flex items-center gap-1">
+							<MapPin className="w-3.5 h-3.5" />{" "}
+							{[job?.location_city, job?.location_country]
+								.filter(Boolean)
+								.join(", ")}
+						</span>
+						<span className="inline-flex items-center gap-1">
+							<Users className="w-3.5 h-3.5" /> {applications.length}{" "}
+							application{applications.length !== 1 ? "s" : ""}
+						</span>
 					</div>
 				</div>
 
@@ -155,7 +180,9 @@ export default function JobApplicationsPage() {
 
 				{applications.length === 0 ? (
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-100 dark:border-gray-800">
-						<div className="text-4xl mb-4">📭</div>
+						<div className="flex justify-center mb-4">
+							<Inbox className="w-10 h-10 text-gray-400" />
+						</div>
 						<h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
 							No applications yet
 						</h3>
@@ -211,9 +238,15 @@ export default function JobApplicationsPage() {
 										</p>
 
 										<div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
-											<span>📅 Applied {formatDate(app.created_at)}</span>
+											<span className="inline-flex items-center gap-1">
+												<Calendar className="w-3.5 h-3.5" /> Applied{" "}
+												{formatDate(app.created_at)}
+											</span>
 											{app.availability_date && (
-												<span>🗓 Available from {formatDate(app.availability_date)}</span>
+												<span className="inline-flex items-center gap-1">
+													<CalendarDays className="w-3.5 h-3.5" /> Available
+													from {formatDate(app.availability_date)}
+												</span>
 											)}
 										</div>
 									</div>
@@ -231,11 +264,15 @@ export default function JobApplicationsPage() {
 										{app.status === "pending" && (
 											<div className="space-y-2">
 												<button
-													onClick={() => handleAccept(app.id, app.professional_id)}
+													onClick={() =>
+														handleAccept(app.id, app.professional_id)
+													}
 													disabled={accepting === app.id}
 													className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
 												>
-													{accepting === app.id ? "Creating contract..." : "Accept & Pay"}
+													{accepting === app.id
+														? "Creating contract..."
+														: "Accept & Pay"}
 												</button>
 												<button
 													onClick={() => handleReject(app.id)}
@@ -248,7 +285,10 @@ export default function JobApplicationsPage() {
 
 										{app.status === "accepted" && (
 											<span className="block bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
-												✓ Accepted
+												<span className="inline-flex items-center gap-1">
+													<CheckCircle2 className="w-4 h-4" />
+													Accepted
+												</span>
 											</span>
 										)}
 
