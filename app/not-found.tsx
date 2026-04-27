@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -9,9 +10,11 @@ export default function NotFound() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col items-center justify-center px-4 text-center">
       {/* Logo */}
-      <img
+      <Image
         src="/logo.png"
         alt="SurveyConnect"
+        width={64}
+        height={64}
         className="w-16 h-16 mb-8 opacity-80"
       />
 
