@@ -119,14 +119,19 @@ export default function ProfessionalOnboardingPage() {
 			return false;
 		}
 
-		if (!formData.profession_type) {
+		const shouldValidateProfessionalFields = nextStep !== "professional";
+
+		if (shouldValidateProfessionalFields && !formData.profession_type) {
 			setSaving(false);
 			setError("Profession is required");
 			return false;
 		}
 
 		const years = Number(formData.years_experience || 0);
-		if (!Number.isFinite(years) || years < 0 || years > 70) {
+		if (
+			shouldValidateProfessionalFields &&
+			(!Number.isFinite(years) || years < 0 || years > 70)
+		) {
 			setSaving(false);
 			setError("Years of experience must be between 0 and 70");
 			return false;
@@ -149,20 +154,23 @@ export default function ProfessionalOnboardingPage() {
 			return false;
 		}
 
+		const professionalPayload: Record<string, unknown> = {
+			id: userId,
+			onboarding_step: nextStep,
+		};
+
+		if (nextStep !== "professional") {
+			professionalPayload.profession_type = formData.profession_type;
+			professionalPayload.years_experience = years;
+			professionalPayload.license_number = formData.license_number.trim() || null;
+		}
+
 		const { error: professionalError } = await supabase
 			.from("professional_profiles")
-			.upsert(
-				{
-					id: userId,
-					profession_type: formData.profession_type,
-					years_experience: years,
-					license_number: formData.license_number.trim() || null,
-					onboarding_step: nextStep,
-				},
-				{ onConflict: "id" },
-			);
+			.upsert(professionalPayload, { onConflict: "id" });
 
 		if (professionalError) {
+			console.error("Failed to save professional details", professionalError);
 			setSaving(false);
 			setError("Could not save professional details");
 			return false;
@@ -203,13 +211,13 @@ export default function ProfessionalOnboardingPage() {
 		await supabase.from("notifications").insert({
 			user_id: userId,
 			title: "Onboarding complete",
-			message: "Your onboarding is complete. Proceed to verification.",
+			message: "Your onboarding is complete. Welcome to your dashboard.",
 			type: "onboarding",
-			link: "/verification",
+			link: "/dashboard/professional",
 			is_read: false,
 		});
 
-		router.push("/verification");
+		router.push("/dashboard/professional");
 	};
 
 	if (loading) {
@@ -260,7 +268,7 @@ export default function ProfessionalOnboardingPage() {
 									htmlFor="onboarding-full-name"
 									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
 								>
-									Full Name
+									Full Name <span className="text-red-500">*</span>
 								</label>
 								<input
 									id="onboarding-full-name"
@@ -277,46 +285,85 @@ export default function ProfessionalOnboardingPage() {
 								/>
 							</div>
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div>
+									<label
+										htmlFor="onboarding-phone"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+									>
+										Phone
+									</label>
+									<input
+										id="onboarding-phone"
+										type="text"
+										placeholder="Phone"
+										value={formData.phone}
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												phone: e.target.value,
+											}))
+										}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
+									/>
+								</div>
+								<div>
+									<label
+										htmlFor="onboarding-country"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+									>
+										Country
+									</label>
+									<input
+										id="onboarding-country"
+										type="text"
+										placeholder="Country"
+										value={formData.country}
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												country: e.target.value,
+											}))
+										}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
+									/>
+								</div>
+							</div>
+							<div>
+								<label
+									htmlFor="onboarding-city"
+									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+								>
+									City
+								</label>
 								<input
+									id="onboarding-city"
 									type="text"
-									placeholder="Phone"
-									value={formData.phone}
+									placeholder="City"
+									value={formData.city}
 									onChange={(e) =>
-										setFormData((prev) => ({ ...prev, phone: e.target.value }))
-									}
-									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-								/>
-								<input
-									type="text"
-									placeholder="Country"
-									value={formData.country}
-									onChange={(e) =>
-										setFormData((prev) => ({
-											...prev,
-											country: e.target.value,
-										}))
+										setFormData((prev) => ({ ...prev, city: e.target.value }))
 									}
 									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
 								/>
 							</div>
-							<input
-								type="text"
-								placeholder="City"
-								value={formData.city}
-								onChange={(e) =>
-									setFormData((prev) => ({ ...prev, city: e.target.value }))
-								}
-								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-							/>
-							<textarea
-								rows={4}
-								placeholder="Short bio"
-								value={formData.bio}
-								onChange={(e) =>
-									setFormData((prev) => ({ ...prev, bio: e.target.value }))
-								}
-								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 resize-none"
-							/>
+							<div>
+								<label
+									htmlFor="onboarding-bio"
+									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+								>
+									Short Bio
+								</label>
+								<textarea
+									id="onboarding-bio"
+									rows={4}
+									placeholder="Short bio"
+									value={formData.bio}
+									onChange={(e) =>
+										setFormData((prev) => ({ ...prev, bio: e.target.value }))
+									}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 resize-none"
+								/>
+							</div>
 						</>
 					)}
 
@@ -327,7 +374,7 @@ export default function ProfessionalOnboardingPage() {
 									htmlFor="onboarding-profession-type"
 									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
 								>
-									Profession Type
+									Profession Type <span className="text-red-500">*</span>
 								</label>
 								<select
 									id="onboarding-profession-type"
@@ -352,32 +399,50 @@ export default function ProfessionalOnboardingPage() {
 								</select>
 							</div>
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<input
-									type="number"
-									min="0"
-									max="70"
-									placeholder="Years experience"
-									value={formData.years_experience}
-									onChange={(e) =>
-										setFormData((prev) => ({
-											...prev,
-											years_experience: e.target.value,
-										}))
-									}
-									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-								/>
-								<input
-									type="text"
-									placeholder="License number"
-									value={formData.license_number}
-									onChange={(e) =>
-										setFormData((prev) => ({
-											...prev,
-											license_number: e.target.value,
-										}))
-									}
-									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-								/>
+								<div>
+									<label
+										htmlFor="onboarding-years"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+									>
+										Years Experience
+									</label>
+									<input
+										id="onboarding-years"
+										type="number"
+										min="0"
+										max="70"
+										placeholder="Years experience"
+										value={formData.years_experience}
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												years_experience: e.target.value,
+											}))
+										}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
+									/>
+								</div>
+								<div>
+									<label
+										htmlFor="onboarding-license"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+									>
+										License Number
+									</label>
+									<input
+										id="onboarding-license"
+										type="text"
+										placeholder="License number"
+										value={formData.license_number}
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												license_number: e.target.value,
+											}))
+										}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
+									/>
+								</div>
 							</div>
 						</>
 					)}
@@ -388,21 +453,25 @@ export default function ProfessionalOnboardingPage() {
 								Ready to finish
 							</p>
 							<p className="text-sm text-green-700 dark:text-green-400 mt-1">
-								Complete onboarding now to continue to verification and unlock
+								Complete onboarding now to continue to your dashboard and unlock
 								all professional actions.
 							</p>
 						</div>
 					)}
 
-					<div className="flex items-center justify-between">
-						<button
-							type="button"
-							onClick={() => setStep((prev) => Math.max(1, prev - 1))}
-							disabled={step === 1 || saving}
-							className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 disabled:opacity-50"
-						>
-							Back
-						</button>
+					<div
+						className={`flex items-center ${step > 1 ? "justify-between" : "justify-end"}`}
+					>
+						{step > 1 && (
+							<button
+								type="button"
+								onClick={() => setStep((prev) => Math.max(1, prev - 1))}
+								disabled={saving}
+								className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 disabled:opacity-50"
+							>
+								Back
+							</button>
+						)}
 						{step < 3 ? (
 							<button
 								type="button"

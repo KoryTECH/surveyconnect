@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Eye, EyeOff } from "lucide-react";
 
 type Bank = {
 	code: string;
@@ -43,6 +44,8 @@ export default function AccountSettingsPage() {
 		newPassword: "",
 		confirmPassword: "",
 	});
+	const [showNewPassword, setShowNewPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	useEffect(() => {
 		const init = async () => {
@@ -272,53 +275,98 @@ export default function AccountSettingsPage() {
 					<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
 						Profile
 					</h3>
-					<input
-						type="text"
-						placeholder="Full name"
-						value={profile.full_name}
-						onChange={(e) =>
-							setProfile((prev) => ({ ...prev, full_name: e.target.value }))
-						}
-						className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-					/>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label
+							htmlFor="settings-full-name"
+							className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+						>
+							Full name <span className="text-red-500">*</span>
+						</label>
 						<input
+							id="settings-full-name"
 							type="text"
-							placeholder="Phone"
-							value={profile.phone}
+							placeholder="Full name"
+							value={profile.full_name}
 							onChange={(e) =>
-								setProfile((prev) => ({ ...prev, phone: e.target.value }))
-							}
-							className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-						/>
-						<input
-							type="text"
-							placeholder="Country"
-							value={profile.country}
-							onChange={(e) =>
-								setProfile((prev) => ({ ...prev, country: e.target.value }))
+								setProfile((prev) => ({ ...prev, full_name: e.target.value }))
 							}
 							className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
 						/>
 					</div>
-					<input
-						type="text"
-						placeholder="City"
-						value={profile.city}
-						onChange={(e) =>
-							setProfile((prev) => ({ ...prev, city: e.target.value }))
-						}
-						className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-					/>
-					<textarea
-						rows={3}
-						placeholder="Bio"
-						value={profile.bio}
-						onChange={(e) =>
-							setProfile((prev) => ({ ...prev, bio: e.target.value }))
-						}
-						className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 resize-none"
-					/>
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div>
+							<label
+								htmlFor="settings-phone"
+								className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+							>
+								Phone
+							</label>
+							<input
+								id="settings-phone"
+								type="text"
+								placeholder="Phone"
+								value={profile.phone}
+								onChange={(e) =>
+									setProfile((prev) => ({ ...prev, phone: e.target.value }))
+								}
+								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
+							/>
+						</div>
+						<div>
+							<label
+								htmlFor="settings-country"
+								className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+							>
+								Country
+							</label>
+							<input
+								id="settings-country"
+								type="text"
+								placeholder="Country"
+								value={profile.country}
+								onChange={(e) =>
+									setProfile((prev) => ({ ...prev, country: e.target.value }))
+								}
+								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
+							/>
+						</div>
+					</div>
+					<div>
+						<label
+							htmlFor="settings-city"
+							className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+						>
+							City
+						</label>
+						<input
+							id="settings-city"
+							type="text"
+							placeholder="City"
+							value={profile.city}
+							onChange={(e) =>
+								setProfile((prev) => ({ ...prev, city: e.target.value }))
+							}
+							className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
+						/>
+					</div>
+					<div>
+						<label
+							htmlFor="settings-bio"
+							className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+						>
+							Bio
+						</label>
+						<textarea
+							id="settings-bio"
+							rows={3}
+							placeholder="Bio"
+							value={profile.bio}
+							onChange={(e) =>
+								setProfile((prev) => ({ ...prev, bio: e.target.value }))
+							}
+							className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 resize-none"
+						/>
+					</div>
 
 					{isProfessional && (
 						<div className="space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
@@ -327,7 +375,7 @@ export default function AccountSettingsPage() {
 							</p>
 							<label
 								htmlFor="settings-bank"
-								className="sr-only"
+								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
 							>
 								Bank
 							</label>
@@ -342,38 +390,59 @@ export default function AccountSettingsPage() {
 								<option value="">Select bank</option>
 								{banks.map((bank) => (
 									<option
-										key={bank.code}
+										key={`${bank.code}-${bank.name}`}
 										value={bank.code}
 									>
 										{bank.name}
 									</option>
 								))}
 							</select>
-							<input
-								type="text"
-								placeholder="Bank account number"
-								maxLength={10}
-								value={profile.bank_account_number}
-								onChange={(e) =>
-									setProfile((prev) => ({
-										...prev,
-										bank_account_number: e.target.value.replace(/[^0-9]/g, ""),
-									}))
-								}
-								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-							/>
-							<input
-								type="text"
-								placeholder="Bank account name"
-								value={profile.bank_account_name}
-								onChange={(e) =>
-									setProfile((prev) => ({
-										...prev,
-										bank_account_name: e.target.value,
-									}))
-								}
-								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-							/>
+							<div>
+								<label
+									htmlFor="settings-bank-account-number"
+									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+								>
+									Bank account number
+								</label>
+								<input
+									id="settings-bank-account-number"
+									type="text"
+									placeholder="Bank account number"
+									maxLength={10}
+									value={profile.bank_account_number}
+									onChange={(e) =>
+										setProfile((prev) => ({
+											...prev,
+											bank_account_number: e.target.value.replace(
+												/[^0-9]/g,
+												"",
+											),
+										}))
+									}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
+								/>
+							</div>
+							<div>
+								<label
+									htmlFor="settings-bank-account-name"
+									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+								>
+									Bank account name
+								</label>
+								<input
+									id="settings-bank-account-name"
+									type="text"
+									placeholder="Bank account name"
+									value={profile.bank_account_name}
+									onChange={(e) =>
+										setProfile((prev) => ({
+											...prev,
+											bank_account_name: e.target.value,
+										}))
+									}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
+								/>
+							</div>
 						</div>
 					)}
 
@@ -444,30 +513,82 @@ export default function AccountSettingsPage() {
 					<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
 						Security
 					</h3>
-					<input
-						type="password"
-						placeholder="New password"
-						value={passwordForm.newPassword}
-						onChange={(e) =>
-							setPasswordForm((prev) => ({
-								...prev,
-								newPassword: e.target.value,
-							}))
-						}
-						className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-					/>
-					<input
-						type="password"
-						placeholder="Confirm password"
-						value={passwordForm.confirmPassword}
-						onChange={(e) =>
-							setPasswordForm((prev) => ({
-								...prev,
-								confirmPassword: e.target.value,
-							}))
-						}
-						className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800"
-					/>
+					<div>
+						<label
+							htmlFor="settings-new-password"
+							className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+						>
+							New password
+						</label>
+						<div className="relative">
+							<input
+								id="settings-new-password"
+								type={showNewPassword ? "text" : "password"}
+								placeholder="New password"
+								value={passwordForm.newPassword}
+								onChange={(e) =>
+									setPasswordForm((prev) => ({
+										...prev,
+										newPassword: e.target.value,
+									}))
+								}
+								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 pr-11 bg-white dark:bg-gray-800"
+							/>
+							<button
+								type="button"
+								onClick={() => setShowNewPassword((prev) => !prev)}
+								className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+								aria-label={
+									showNewPassword ? "Hide new password" : "Show new password"
+								}
+							>
+								{showNewPassword ? (
+									<EyeOff className="w-4 h-4" />
+								) : (
+									<Eye className="w-4 h-4" />
+								)}
+							</button>
+						</div>
+					</div>
+					<div>
+						<label
+							htmlFor="settings-confirm-password"
+							className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+						>
+							Confirm password
+						</label>
+						<div className="relative">
+							<input
+								id="settings-confirm-password"
+								type={showConfirmPassword ? "text" : "password"}
+								placeholder="Confirm password"
+								value={passwordForm.confirmPassword}
+								onChange={(e) =>
+									setPasswordForm((prev) => ({
+										...prev,
+										confirmPassword: e.target.value,
+									}))
+								}
+								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 pr-11 bg-white dark:bg-gray-800"
+							/>
+							<button
+								type="button"
+								onClick={() => setShowConfirmPassword((prev) => !prev)}
+								className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+								aria-label={
+									showConfirmPassword
+										? "Hide confirm password"
+										: "Show confirm password"
+								}
+							>
+								{showConfirmPassword ? (
+									<EyeOff className="w-4 h-4" />
+								) : (
+									<Eye className="w-4 h-4" />
+								)}
+							</button>
+						</div>
+					</div>
 					<button
 						type="button"
 						onClick={updatePassword}
@@ -476,6 +597,24 @@ export default function AccountSettingsPage() {
 					>
 						{savingPassword ? "Updating..." : "Update Password"}
 					</button>
+				</div>
+
+				<div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 space-y-3">
+					<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+						Legal
+					</h3>
+					<Link
+						href="#"
+						className="block text-sm text-green-600 hover:text-green-700"
+					>
+						Terms and Conditions
+					</Link>
+					<Link
+						href="#"
+						className="block text-sm text-green-600 hover:text-green-700"
+					>
+						Privacy Policy
+					</Link>
 				</div>
 			</div>
 		</div>

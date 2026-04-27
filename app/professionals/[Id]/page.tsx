@@ -59,74 +59,118 @@ export default function ProfessionalProfilePage() {
 	useEffect(() => {
 		const id = params?.id as string;
 
-		if (!id) return;
+		if (!id) {
+			setNotFound(true);
+			setLoading(false);
+			return;
+		}
 
 		const getData = async () => {
-			const { data: { user } } = await supabase.auth.getUser();
-			if (!user) { router.push("/login"); return; }
+			try {
+				const {
+					data: { user },
+					error: authError,
+				} = await supabase.auth.getUser();
+				if (authError || !user) {
+					router.push("/login");
+					return;
+				}
 
-			setViewerId(user.id);
+				setViewerId(user.id);
 
-			const { data: viewerProfile } = await supabase
-				.from("profiles")
-				.select("role")
-				.eq("id", user.id)
-				.single();
-
-			setViewerRole(viewerProfile?.role || "");
-
-			const [{ data: profData }, { data: profileData }] = await Promise.all([
-				supabase
-					.from("professional_profiles")
-					.select("*")
-					.eq("id", id)
-					.maybeSingle(),
-				supabase
+				const { data: viewerProfile, error: viewerProfileError } = await supabase
 					.from("profiles")
-					.select("full_name, country, email")
-					.eq("id", id)
-					.maybeSingle(),
-			]);
+					.select("role")
+					.eq("id", user.id)
+					.single();
 
-			if (!profileData) {
-				setNotFound(true);
-				setLoading(false);
-				return;
-			}
+				if (viewerProfileError) {
+					console.error("Failed to load viewer profile", viewerProfileError);
+				}
 
-			setProf(profData);
-			setProfile(profileData);
+				setViewerRole(viewerProfile?.role || "");
 
-			const { data: reviewsData } = await supabase
-				.from("reviews")
-				.select("*, profiles!reviews_reviewer_id_fkey(full_name)")
-				.eq("reviewee_id", id)
-				.order("created_at", { ascending: false });
+				const [professionalResult, profileResult] = await Promise.all([
+					supabase
+						.from("professional_profiles")
+						.select("*")
+						.eq("id", id)
+						.maybeSingle(),
+					supabase
+						.from("profiles")
+						.select("full_name, country, email")
+						.eq("id", id)
+						.maybeSingle(),
+				]);
 
-			setReviews(reviewsData || []);
+				if (profileResult.error) {
+					console.error("Failed to load public profile", profileResult.error);
+					setNotFound(true);
+					return;
+				}
 
-			if (viewerProfile?.role === "client") {
-				const { data: contractsData } = await supabase
-					.from("contracts")
-					.select("id, jobs(title)")
-					.eq("client_id", user.id)
-					.eq("professional_id", id)
-					.not("payment_released_at", "is", null);
+				if (!profileResult.data) {
+					setNotFound(true);
+					return;
+				}
 
-				const { data: existingReviews } = await supabase
+				if (professionalResult.error) {
+					console.error("Failed to load professional details", professionalResult.error);
+				}
+
+				setProf(professionalResult.data);
+				setProfile(profileResult.data);
+
+				const { data: reviewsData, error: reviewsError } = await supabase
 					.from("reviews")
-					.select("contract_id")
-					.eq("reviewer_id", user.id)
-					.eq("reviewee_id", id);
+					.select("*, profiles!reviews_reviewer_id_fkey(full_name)")
+					.eq("reviewee_id", id)
+					.order("created_at", { ascending: false });
 
-				const reviewedContractIds = (existingReviews || []).map((r: any) => r.contract_id);
-				const eligible = (contractsData || []).filter((c: any) => !reviewedContractIds.includes(c.id));
+				if (reviewsError) {
+					console.error("Failed to load reviews", reviewsError);
+				}
 
-				setEligibleContracts(eligible);
-				if (eligible.length > 0) setSelectedContract(eligible[0].id);
+				setReviews(reviewsData || []);
+
+				if (viewerProfile?.role === "client") {
+					const { data: contractsData, error: contractsError } = await supabase
+						.from("contracts")
+						.select("id, jobs(title)")
+						.eq("client_id", user.id)
+						.eq("professional_id", id)
+						.not("payment_released_at", "is", null);
+
+					if (contractsError) {
+						console.error("Failed to load eligible contracts", contractsError);
+					}
+
+					const { data: existingReviews, error: existingReviewsError } = await supabase
+						.from("reviews")
+						.select("contract_id")
+						.eq("reviewer_id", user.id)
+						.eq("reviewee_id", id);
+
+					if (existingReviewsError) {
+						console.error("Failed to load existing reviews", existingReviewsError);
+					}
+
+					const reviewedContractIds = (existingReviews || []).map(
+						(r: any) => r.contract_id,
+					);
+					const eligible = (contractsData || []).filter(
+						(c: any) => !reviewedContractIds.includes(c.id),
+					);
+
+					setEligibleContracts(eligible);
+					if (eligible.length > 0) setSelectedContract(eligible[0].id);
+				}
+			} catch (err) {
+				console.error("Unexpected error loading professional profile", err);
+				setNotFound(true);
+			} finally {
+				setLoading(false);
 			}
-
-			setLoading(false);
 		};
 
 		getData();
@@ -255,11 +299,11 @@ export default function ProfessionalProfilePage() {
 					</div>
 				</div>
 
-				{/* Professional Details */}
+				{/* Portfolio Overview */}
 				{prof && (
 					<div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 space-y-4">
 						<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-							Professional Details
+							Portfolio Overview
 						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							{prof?.years_experience > 0 && (
@@ -315,10 +359,14 @@ export default function ProfessionalProfilePage() {
 
 						{eligibleContracts.length > 1 && (
 							<div className="mb-4">
-								<label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">
+								<label
+									htmlFor="review-contract-select"
+									className="text-sm text-gray-600 dark:text-gray-400 mb-1 block"
+								>
 									Select Contract
 								</label>
 								<select
+									id="review-contract-select"
 									value={selectedContract}
 									onChange={(e) => setSelectedContract(e.target.value)}
 									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"

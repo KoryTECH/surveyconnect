@@ -44,7 +44,16 @@ export async function GET() {
 				name: String(bank.name),
 			}));
 
-		return NextResponse.json({ banks });
+		const uniqueBanks = Array.from(
+			new Map(
+				banks.map((bank) => [
+					`${bank.code.toLowerCase()}::${bank.name.toLowerCase()}`,
+					bank,
+				]),
+			).values(),
+		);
+
+		return NextResponse.json({ banks: uniqueBanks });
 	} catch (error) {
 		console.error("Banks fetch failed:", error);
 		return NextResponse.json({ banks: [] });

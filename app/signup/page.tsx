@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Building2, Map } from "lucide-react";
+import { Building2, Eye, EyeOff, Map } from "lucide-react";
 
 export default function SignupPage() {
 	const router = useRouter();
@@ -21,6 +21,8 @@ export default function SignupPage() {
 	});
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -236,15 +238,29 @@ export default function SignupPage() {
 						<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 							Password <span className="text-red-500">*</span>
 						</label>
-						<input
-							type="password"
-							name="password"
-							value={formData.password}
-							onChange={handleChange}
-							required
-							placeholder="Min. 8 characters"
-							className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
-						/>
+						<div className="relative">
+							<input
+								type={showPassword ? "text" : "password"}
+								name="password"
+								value={formData.password}
+								onChange={handleChange}
+								required
+								placeholder="Min. 8 characters"
+								className="w-full px-4 py-3 pr-11 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
+							/>
+							<button
+								type="button"
+								onClick={() => setShowPassword((prev) => !prev)}
+								className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+								aria-label={showPassword ? "Hide password" : "Show password"}
+							>
+								{showPassword ? (
+									<EyeOff className="w-4 h-4" />
+								) : (
+									<Eye className="w-4 h-4" />
+								)}
+							</button>
+						</div>
 					</div>
 
 					{/* Confirm Password */}
@@ -252,15 +268,33 @@ export default function SignupPage() {
 						<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 							Confirm Password <span className="text-red-500">*</span>
 						</label>
-						<input
-							type="password"
-							name="confirmPassword"
-							value={formData.confirmPassword}
-							onChange={handleChange}
-							required
-							placeholder="Repeat your password"
-							className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
-						/>
+						<div className="relative">
+							<input
+								type={showConfirmPassword ? "text" : "password"}
+								name="confirmPassword"
+								value={formData.confirmPassword}
+								onChange={handleChange}
+								required
+								placeholder="Repeat your password"
+								className="w-full px-4 py-3 pr-11 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
+							/>
+							<button
+								type="button"
+								onClick={() => setShowConfirmPassword((prev) => !prev)}
+								className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+								aria-label={
+									showConfirmPassword
+										? "Hide confirm password"
+										: "Show confirm password"
+								}
+							>
+								{showConfirmPassword ? (
+									<EyeOff className="w-4 h-4" />
+								) : (
+									<Eye className="w-4 h-4" />
+								)}
+							</button>
+						</div>
 					</div>
 
 					{/* Submit Button */}

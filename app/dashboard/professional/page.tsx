@@ -37,42 +37,61 @@ export default function ProfessionalDashboard() {
 	const supabaseRef = useRef(createClient());
 	const supabase = supabaseRef.current;
 
+	const getCurrentUser = async () => {
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
+		if (session?.user) {
+			return session.user;
+		}
+
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
+
+		if (error) {
+			throw error;
+		}
+
+		return user;
+	};
+
 	useEffect(() => {
 		const getProfile = async () => {
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) {
-				router.push("/login");
-				return;
-			}
+			try {
+				const user = await getCurrentUser();
+				if (!user) {
+					router.push("/login");
+					return;
+				}
 
-			const { data } = await supabase
-				.from("profiles")
-				.select("*")
-				.eq("id", user.id)
-				.single();
+				const { data } = await supabase
+					.from("profiles")
+					.select("*")
+					.eq("id", user.id)
+					.single();
 
-			const { data: prof } = await supabase
-				.from("professional_profiles")
-				.select("verification_status")
-				.eq("id", user.id)
-				.single();
+				const { data: prof } = await supabase
+					.from("professional_profiles")
+					.select("verification_status")
+					.eq("id", user.id)
+					.single();
 
-			setProfile(data);
-			setProfProfile(prof);
+				setProfile(data);
+				setProfProfile(prof);
 
-			const { data: contracts } = await supabase
-				.from("contracts")
-				.select("id, professional_receives, payment_released_at")
-				.eq("professional_id", user.id);
+				const { data: contracts } = await supabase
+					.from("contracts")
+					.select("id, professional_receives, payment_released_at")
+					.eq("professional_id", user.id);
 
-			const { data: reviews } = await supabase
-				.from("reviews")
-				.select("rating")
-				.eq("reviewee_id", user.id);
+				const { data: reviews } = await supabase
+					.from("reviews")
+					.select("rating")
+					.eq("reviewee_id", user.id);
 
-			if (contracts) {
+				if (contracts) {
 				const completed = contracts.filter(
 					(c) => c.payment_released_at !== null,
 				).length;
@@ -85,16 +104,16 @@ export default function ProfessionalDashboard() {
 						? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
 						: null;
 
-				setStats({
-					jobsCompleted: completed,
-					totalEarned: earned,
-					avgRating: avg,
-				});
-			}
+					setStats({
+						jobsCompleted: completed,
+						totalEarned: earned,
+						avgRating: avg,
+					});
+				}
 
-			setLoading(false);
+				setLoading(false);
 
-			const fetchUnread = async () => {
+				const fetchUnread = async () => {
 				const { data: activeContracts } = await supabase
 					.from("contracts")
 					.select("id")
@@ -112,11 +131,11 @@ export default function ProfessionalDashboard() {
 					.eq("is_read", false);
 
 				setUnreadCount(count || 0);
-			};
+				};
 
-			fetchUnread();
+				fetchUnread();
 
-			const fetchUnreadNotifications = async () => {
+				const fetchUnreadNotifications = async () => {
 				const { count } = await supabase
 					.from("notifications")
 					.select("id", { count: "exact", head: true })
@@ -124,17 +143,17 @@ export default function ProfessionalDashboard() {
 					.eq("is_read", false);
 
 				setUnreadNotifications(count || 0);
-			};
+				};
 
-			fetchUnreadNotifications();
+				fetchUnreadNotifications();
 
-			const { data: activeContracts } = await supabase
-				.from("contracts")
-				.select("id")
-				.eq("professional_id", user.id)
-				.in("status", ["active", "completed"]);
+				const { data: activeContracts } = await supabase
+					.from("contracts")
+					.select("id")
+					.eq("professional_id", user.id)
+					.in("status", ["active", "completed"]);
 
-			if (activeContracts && activeContracts.length > 0) {
+				if (activeContracts && activeContracts.length > 0) {
 				const channel = supabase
 					.channel("professional-unread-messages")
 					.on(
@@ -152,9 +171,15 @@ export default function ProfessionalDashboard() {
 					)
 					.subscribe();
 
-				return () => {
-					supabase.removeChannel(channel);
-				};
+					return () => {
+						supabase.removeChannel(channel);
+					};
+				}
+			} catch (error) {
+				console.error("Failed to load professional dashboard", error);
+				router.push("/login");
+			} finally {
+				setLoading(false);
 			}
 		};
 
@@ -202,11 +227,11 @@ export default function ProfessionalDashboard() {
 			badge: unreadCount,
 		},
 		{
-			href: "/profile",
+			href: profile?.id ? `/professionals/${profile.id}` : "/professionals",
 			icon: <User className="w-5 h-5 text-orange-700 dark:text-orange-300" />,
 			iconBg: "bg-orange-100 dark:bg-orange-900/40",
-			label: "Update Profile",
-			desc: "Add your skills and portfolio",
+			label: "Portfolio Preview",
+			desc: "See how clients view your public profile",
 		},
 	];
 
@@ -241,10 +266,11 @@ export default function ProfessionalDashboard() {
 							<AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
 							<div>
 								<p className="font-semibold text-yellow-800 dark:text-yellow-300">
-									Complete your verification
+									Get verified to land more jobs
 								</p>
 								<p className="text-sm text-yellow-700 dark:text-yellow-400">
-									Upload your ID and license to apply for jobs
+									Complete verification to increase trust and unlock more
+									opportunities
 								</p>
 							</div>
 						</div>
@@ -252,7 +278,7 @@ export default function ProfessionalDashboard() {
 							href="/verification"
 							className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shrink-0"
 						>
-							Verify Now
+							Get Verified
 						</Link>
 					</div>
 				)}

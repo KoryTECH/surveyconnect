@@ -140,6 +140,7 @@ export async function middleware(request: NextRequest) {
 		const path = request.nextUrl.pathname;
 		const isAllowedBeforeOnboarding =
 			path.startsWith("/onboarding/professional") ||
+			path.startsWith("/dashboard/professional") ||
 			path.startsWith("/api") ||
 			path === "/" ||
 			path.startsWith("/login") ||

@@ -27,6 +27,7 @@ export default function ClientDashboard() {
 	const [unreadNotifications, setUnreadNotifications] = useState(0);
 	const [showChecklist, setShowChecklist] = useState(false);
 	const [dismissingChecklist, setDismissingChecklist] = useState(false);
+	const [isChecklistExpanded, setIsChecklistExpanded] = useState(true);
 	const [stats, setStats] = useState({
 		activeProjects: 0,
 		totalSpent: 0,
@@ -36,126 +37,151 @@ export default function ClientDashboard() {
 	const supabaseRef = useRef(createClient());
 	const supabase = supabaseRef.current;
 
+	const getCurrentUser = async () => {
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
+		if (session?.user) {
+			return session.user;
+		}
+
+		const {
+			data: { user },
+			error,
+		} = await supabase.auth.getUser();
+
+		if (error) {
+			throw error;
+		}
+
+		return user;
+	};
+
 	useEffect(() => {
 		const getProfile = async () => {
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) {
-				router.push("/login");
-				return;
-			}
-
-			const { data } = await supabase
-				.from("profiles")
-				.select("*")
-				.eq("id", user.id)
-				.single();
-
-			setProfile(data);
-
-			const { data: contracts } = await supabase
-				.from("contracts")
-				.select("id, status, escrow_amount, payment_released_at")
-				.eq("client_id", user.id);
-
-			const { count: jobsCount } = await supabase
-				.from("jobs")
-				.select("id", { count: "exact", head: true })
-				.eq("client_id", user.id);
-
-			const { data: clientProfile } = await supabase
-				.from("client_profiles")
-				.select("onboarding_dismissed_at")
-				.eq("id", user.id)
-				.maybeSingle();
-
-			if (contracts) {
-				const active = contracts.filter((c) => c.status === "active").length;
-				const completed = contracts.filter(
-					(c) => c.payment_released_at !== null,
-				).length;
-				const spent = contracts
-					.filter((c) => c.payment_released_at !== null)
-					.reduce((sum, c) => sum + Number(c.escrow_amount || 0), 0);
-
-				setStats({
-					activeProjects: active,
-					totalSpent: spent,
-					completedProjects: completed,
-				});
-
-				const hasPostedJob = Number(jobsCount || 0) > 0;
-				const hasAnyContract = contracts.length > 0;
-				const isDismissed = Boolean(clientProfile?.onboarding_dismissed_at);
-				if (!isDismissed && !(hasPostedJob && hasAnyContract)) {
-					setShowChecklist(true);
+			try {
+				const user = await getCurrentUser();
+				if (!user) {
+					router.push("/login");
+					return;
 				}
-			}
 
-			setLoading(false);
+				const { data } = await supabase
+					.from("profiles")
+					.select("*")
+					.eq("id", user.id)
+					.single();
 
-			const fetchUnread = async () => {
+				setProfile(data);
+
+				const { data: contracts } = await supabase
+					.from("contracts")
+					.select("id, status, escrow_amount, payment_released_at")
+					.eq("client_id", user.id);
+
+				const { count: jobsCount } = await supabase
+					.from("jobs")
+					.select("id", { count: "exact", head: true })
+					.eq("client_id", user.id);
+
+				const { data: clientProfile } = await supabase
+					.from("client_profiles")
+					.select("onboarding_dismissed_at")
+					.eq("id", user.id)
+					.maybeSingle();
+
+				if (contracts) {
+					const active = contracts.filter((c) => c.status === "active").length;
+					const completed = contracts.filter(
+						(c) => c.payment_released_at !== null,
+					).length;
+					const spent = contracts
+						.filter((c) => c.payment_released_at !== null)
+						.reduce((sum, c) => sum + Number(c.escrow_amount || 0), 0);
+
+					setStats({
+						activeProjects: active,
+						totalSpent: spent,
+						completedProjects: completed,
+					});
+
+					const hasPostedJob = Number(jobsCount || 0) > 0;
+					const hasAnyContract = contracts.length > 0;
+					const isDismissed = Boolean(clientProfile?.onboarding_dismissed_at);
+					if (!isDismissed && !(hasPostedJob && hasAnyContract)) {
+						setShowChecklist(true);
+					}
+				}
+
+				setLoading(false);
+
+				const fetchUnread = async () => {
+					const { data: activeContracts } = await supabase
+						.from("contracts")
+						.select("id")
+						.eq("client_id", user.id)
+						.in("status", ["active", "completed"]);
+
+					if (!activeContracts || activeContracts.length === 0) return;
+
+					const contractIds = activeContracts.map((c) => c.id);
+					const { count } = await supabase
+						.from("messages")
+						.select("id", { count: "exact", head: true })
+						.in("contract_id", contractIds)
+						.neq("sender_id", user.id)
+						.eq("is_read", false);
+
+					setUnreadCount(count || 0);
+				};
+
+				fetchUnread();
+
+				const fetchUnreadNotifications = async () => {
+					const { count } = await supabase
+						.from("notifications")
+						.select("id", { count: "exact", head: true })
+						.eq("user_id", user.id)
+						.eq("is_read", false);
+
+					setUnreadNotifications(count || 0);
+				};
+
+				fetchUnreadNotifications();
+
 				const { data: activeContracts } = await supabase
 					.from("contracts")
 					.select("id")
 					.eq("client_id", user.id)
 					.in("status", ["active", "completed"]);
 
-				if (!activeContracts || activeContracts.length === 0) return;
+				if (activeContracts && activeContracts.length > 0) {
+					const channel = supabase
+						.channel("client-unread-messages")
+						.on(
+							"postgres_changes",
+							{ event: "INSERT", schema: "public", table: "messages" },
+							(payload) => {
+								const msg = payload.new as any;
+								const isMyContract = activeContracts.some(
+									(c) => c.id === msg.contract_id,
+								);
+								if (isMyContract && msg.sender_id !== user.id) {
+									setUnreadCount((prev) => prev + 1);
+								}
+							},
+						)
+						.subscribe();
 
-				const contractIds = activeContracts.map((c) => c.id);
-				const { count } = await supabase
-					.from("messages")
-					.select("id", { count: "exact", head: true })
-					.in("contract_id", contractIds)
-					.neq("sender_id", user.id)
-					.eq("is_read", false);
-
-				setUnreadCount(count || 0);
-			};
-
-			fetchUnread();
-
-			const fetchUnreadNotifications = async () => {
-				const { count } = await supabase
-					.from("notifications")
-					.select("id", { count: "exact", head: true })
-					.eq("user_id", user.id)
-					.eq("is_read", false);
-
-				setUnreadNotifications(count || 0);
-			};
-
-			fetchUnreadNotifications();
-
-			const { data: activeContracts } = await supabase
-				.from("contracts")
-				.select("id")
-				.eq("client_id", user.id)
-				.in("status", ["active", "completed"]);
-
-			if (activeContracts && activeContracts.length > 0) {
-				const channel = supabase
-					.channel("client-unread-messages")
-					.on(
-						"postgres_changes",
-						{ event: "INSERT", schema: "public", table: "messages" },
-						(payload) => {
-							const msg = payload.new as any;
-							const isMyContract = activeContracts.some(
-								(c) => c.id === msg.contract_id,
-							);
-							if (isMyContract && msg.sender_id !== user.id) {
-								setUnreadCount((prev) => prev + 1);
-							}
-						},
-					)
-					.subscribe();
-
-				return () => {
-					supabase.removeChannel(channel);
-				};
+					return () => {
+						supabase.removeChannel(channel);
+					};
+				}
+			} catch (error) {
+				console.error("Failed to load client dashboard", error);
+				router.push("/login");
+			} finally {
+				setLoading(false);
 			}
 		};
 
@@ -171,9 +197,12 @@ export default function ClientDashboard() {
 		setDismissingChecklist(true);
 		setShowChecklist(false);
 
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
+		let user = null;
+		try {
+			user = await getCurrentUser();
+		} catch (error) {
+			console.error("Failed to resolve user for checklist dismiss", error);
+		}
 
 		if (user) {
 			await supabase
@@ -183,6 +212,10 @@ export default function ClientDashboard() {
 		}
 
 		setDismissingChecklist(false);
+	};
+
+	const toggleChecklistExpanded = () => {
+		setIsChecklistExpanded((prev) => !prev);
 	};
 
 	if (loading) {
@@ -260,7 +293,7 @@ export default function ClientDashboard() {
 						items={[
 							{
 								id: "profile",
-								label: "Complete your basic profile",
+								label: "Complete your basic profile in /profile",
 								completed: Boolean(profile?.full_name && profile?.country),
 							},
 							{
@@ -277,6 +310,8 @@ export default function ClientDashboard() {
 						]}
 						onDismiss={dismissChecklist}
 						dismissing={dismissingChecklist}
+						isExpanded={isChecklistExpanded}
+						onToggleExpand={toggleChecklistExpanded}
 					/>
 				)}
 
