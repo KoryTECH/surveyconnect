@@ -39,7 +39,3 @@ input, select, textarea {
 input::placeholder {
   color: #9ca3af !important;
 }
-
-input, textarea, select {
-  color: inherit;
-}
