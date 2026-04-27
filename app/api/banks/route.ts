@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 
+type BankOption = {
+	code: string;
+	name: string;
+};
+
 export async function GET() {
 	try {
 		const supabase = await createClient();
@@ -37,7 +42,7 @@ export async function GET() {
 			return NextResponse.json({ banks: [] });
 		}
 
-		const banks = data.data
+		const banks: BankOption[] = data.data
 			.filter((bank: any) => bank?.code && bank?.name)
 			.map((bank: any) => ({
 				code: String(bank.code),
@@ -46,7 +51,7 @@ export async function GET() {
 
 		const uniqueBanks = Array.from(
 			new Map(
-				banks.map((bank) => [
+				banks.map((bank: BankOption) => [
 					`${bank.code.toLowerCase()}::${bank.name.toLowerCase()}`,
 					bank,
 				]),
