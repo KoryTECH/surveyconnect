@@ -35,6 +35,8 @@ export async function middleware(request: NextRequest) {
 
 	let profile: { role?: string | null; is_admin?: boolean | null } | null =
 		null;
+	let professionalProfile: { onboarding_completed?: boolean | null } | null =
+		null;
 	if (user) {
 		const { data } = await supabase
 			.from("profiles")
@@ -43,6 +45,16 @@ export async function middleware(request: NextRequest) {
 			.single();
 
 		profile = data;
+
+		if (data?.role === "professional") {
+			const { data: professionalData } = await supabase
+				.from("professional_profiles")
+				.select("onboarding_completed")
+				.eq("id", user.id)
+				.maybeSingle();
+
+			professionalProfile = professionalData;
+		}
 	}
 
 	if (
@@ -103,6 +115,39 @@ export async function middleware(request: NextRequest) {
 		if (profile?.role !== "professional") {
 			const url = request.nextUrl.clone();
 			url.pathname = "/dashboard/client";
+			return NextResponse.redirect(url);
+		}
+	}
+
+	if (request.nextUrl.pathname.startsWith("/onboarding/professional")) {
+		if (profile?.role !== "professional") {
+			const url = request.nextUrl.clone();
+			url.pathname = "/dashboard/client";
+			return NextResponse.redirect(url);
+		}
+
+		if (professionalProfile?.onboarding_completed) {
+			const url = request.nextUrl.clone();
+			url.pathname = "/dashboard/professional";
+			return NextResponse.redirect(url);
+		}
+	}
+
+	if (
+		profile?.role === "professional" &&
+		!professionalProfile?.onboarding_completed
+	) {
+		const path = request.nextUrl.pathname;
+		const isAllowedBeforeOnboarding =
+			path.startsWith("/onboarding/professional") ||
+			path.startsWith("/api") ||
+			path === "/" ||
+			path.startsWith("/login") ||
+			path.startsWith("/signup");
+
+		if (!isAllowedBeforeOnboarding) {
+			const url = request.nextUrl.clone();
+			url.pathname = "/onboarding/professional";
 			return NextResponse.redirect(url);
 		}
 	}
