@@ -38,9 +38,7 @@ export default function ClientDashboard() {
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
 
-  const getCurrentUser = useCallback<
-    () => Promise<any>
-  >(async (): Promise<any> => {
+  const getCurrentUser = useCallback(async (): Promise<any> => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -58,7 +56,7 @@ export default function ClientDashboard() {
     }
 
     return user;
-  }, [getCurrentUser, router]);
+  }, []);
 
   useEffect(() => {
     const getProfile = async () => {
