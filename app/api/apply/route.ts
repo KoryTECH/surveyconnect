@@ -83,7 +83,15 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "Already applied" }, { status: 409 });
+    }
+
+    console.error("Job application insert failed:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 
   const { data: clientProfile } = await supabase

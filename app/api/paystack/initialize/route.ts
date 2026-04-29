@@ -84,19 +84,6 @@ export async function POST(request: NextRequest) {
     // Paystack expects amount in kobo (NGN × 100)
     const amountInKobo = ngnAmount * 100;
 
-    const { error: amountPersistError } = await supabase
-      .from("contracts")
-      .update({ ngn_amount_paid: ngnAmount, exchange_rate_used: exchangeRate })
-      .eq("id", contractId);
-
-    if (amountPersistError) {
-      console.error("Failed to persist exchange data:", amountPersistError);
-      return NextResponse.json(
-        { error: "Could not prepare payment" },
-        { status: 500 },
-      );
-    }
-
     const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!paystackSecretKey) {
       console.error("PAYSTACK_SECRET_KEY is not set");
@@ -139,6 +126,7 @@ export async function POST(request: NextRequest) {
       callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/paystack/verify`,
     };
 
+    const emailDomain = email.split("@")[1] || "unknown";
     console.log("Initializing Paystack payment:", {
       contractId,
       agreedBudget,
@@ -147,7 +135,7 @@ export async function POST(request: NextRequest) {
       ngnAmount,
       amountInKobo,
       reference,
-      email,
+      emailDomain,
     });
 
     const paystackResponse = await fetch(
@@ -178,6 +166,19 @@ export async function POST(request: NextRequest) {
             httpStatus: paystackResponse.status,
           },
         },
+        { status: 500 },
+      );
+    }
+
+    const { error: amountPersistError } = await supabase
+      .from("contracts")
+      .update({ ngn_amount_paid: ngnAmount, exchange_rate_used: exchangeRate })
+      .eq("id", contractId);
+
+    if (amountPersistError) {
+      console.error("Failed to persist exchange data:", amountPersistError);
+      return NextResponse.json(
+        { error: "Could not prepare payment" },
         { status: 500 },
       );
     }

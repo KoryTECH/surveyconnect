@@ -51,33 +51,42 @@ export default function ProfessionalContractsPage() {
   const handleMarkComplete = async (contractId: string) => {
     setCompleting(contractId);
     const supabase = createClient();
-    await supabase
-      .from("contracts")
-      .update({ status: "completed" })
-      .eq("id", contractId);
+    try {
+      const { error } = await supabase
+        .from("contracts")
+        .update({ status: "completed" })
+        .eq("id", contractId);
 
-    const contract = contracts.find((item) => item.id === contractId);
-    if (contract?.profiles?.email && contract?.profiles?.full_name) {
-      await fetch("/api/notify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "job_completed",
-          recipientEmail: contract.profiles.email,
-          recipientName: contract.profiles.full_name,
-          details: {
-            jobTitle: contract.jobs?.title ?? "your job",
-          },
-        }),
-      }).catch(() => {});
+      if (error) {
+        console.error("Failed to mark contract complete:", error);
+        return;
+      }
+
+      const contract = contracts.find((item) => item.id === contractId);
+      if (contract?.profiles?.email && contract?.profiles?.full_name) {
+        await fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "job_completed",
+            recipientEmail: contract.profiles.email,
+            recipientName: contract.profiles.full_name,
+            details: {
+              jobTitle: contract.jobs?.title ?? "your job",
+              contractId,
+            },
+          }),
+        }).catch(() => {});
+      }
+
+      setContracts((prev) =>
+        prev.map((c) =>
+          c.id === contractId ? { ...c, status: "completed" } : c,
+        ),
+      );
+    } finally {
+      setCompleting(null);
     }
-
-    setContracts((prev) =>
-      prev.map((c) =>
-        c.id === contractId ? { ...c, status: "completed" } : c,
-      ),
-    );
-    setCompleting(null);
   };
 
   const formatDate = (date: string | null) =>
@@ -148,6 +157,7 @@ export default function ProfessionalContractsPage() {
           <div className="space-y-4">
             {contracts.map((contract) => {
               const isChatLocked = contract.payment_released_at !== null;
+              const budget = Number(contract.agreed_budget ?? 0);
 
               return (
                 <div
@@ -212,14 +222,14 @@ export default function ProfessionalContractsPage() {
                     <div className="text-right shrink-0 space-y-3">
                       <div>
                         <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          ${Number(contract.agreed_budget).toLocaleString()}
+                          ${budget.toLocaleString()}
                         </p>
                         <p className="text-xs text-gray-400 dark:text-gray-500">
                           agreed budget
                         </p>
                         <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-1">
                           You receive: $
-                          {(Number(contract.agreed_budget) * 0.95).toFixed(2)}
+                          {(budget * 0.95).toFixed(2)}
                         </p>
                       </div>
 

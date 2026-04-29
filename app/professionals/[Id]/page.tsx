@@ -25,6 +25,7 @@ export default function ProfessionalProfilePage() {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const getProfessionLabel = (type: string) => {
     const labels: any = {
@@ -101,7 +102,7 @@ export default function ProfessionalProfilePage() {
             .maybeSingle(),
           supabase
             .from("profiles")
-            .select("full_name, country, email, bio")
+            .select("full_name, country, bio")
             .eq("id", id)
             .maybeSingle(),
         ]);
@@ -189,6 +190,7 @@ export default function ProfessionalProfilePage() {
   const handleSubmitReview = async () => {
     if (!rating || !selectedContract) return;
     setSubmitting(true);
+    setReviewError(null);
 
     const { error } = await supabase.from("reviews").insert({
       contract_id: selectedContract,
@@ -198,23 +200,27 @@ export default function ProfessionalProfilePage() {
       comment: comment.trim() || null,
     });
 
-    if (!error) {
-      const { data: reviewsData } = await supabase
-        .from("reviews")
-        .select("*, profiles!reviews_reviewer_id_fkey(full_name)")
-        .eq("reviewee_id", id)
-        .order("created_at", { ascending: false });
-
-      setReviews(reviewsData || []);
-      setEligibleContracts((prev) =>
-        prev.filter((c) => c.id !== selectedContract),
-      );
-      setRating(0);
-      setComment("");
-      setReviewSuccess(true);
-      setTimeout(() => setReviewSuccess(false), 3000);
+    if (error) {
+      setReviewError(error.message || "Failed to submit review");
+      setTimeout(() => setReviewError(null), 3000);
+      setSubmitting(false);
+      return;
     }
 
+    const { data: reviewsData } = await supabase
+      .from("reviews")
+      .select("*, profiles!reviews_reviewer_id_fkey(full_name)")
+      .eq("reviewee_id", id)
+      .order("created_at", { ascending: false });
+
+    setReviews(reviewsData || []);
+    setEligibleContracts((prev) =>
+      prev.filter((c) => c.id !== selectedContract),
+    );
+    setRating(0);
+    setComment("");
+    setReviewSuccess(true);
+    setTimeout(() => setReviewSuccess(false), 3000);
     setSubmitting(false);
   };
 
@@ -451,6 +457,14 @@ export default function ProfessionalProfilePage() {
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 mb-4">
                 <p className="text-green-700 dark:text-green-400 text-sm font-medium">
                   Review submitted successfully!
+                </p>
+              </div>
+            )}
+
+            {reviewError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4">
+                <p className="text-red-700 dark:text-red-400 text-sm font-medium">
+                  {reviewError}
                 </p>
               </div>
             )}

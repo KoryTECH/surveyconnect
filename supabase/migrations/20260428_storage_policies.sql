@@ -16,16 +16,7 @@ VALUES (
   'professionals_upload_own_folder',
   'verification-documents',
   'INSERT',
-  '(auth.uid()::text = (storage.foldername(name))[1])'
-) ON CONFLICT DO NOTHING;
-
--- 3. Allow authenticated users to upload (required for INSERT to work)
-INSERT INTO storage.policies (name, bucket_id, operation, definition)
-VALUES (
-  'authenticated_can_upload',
-  'verification-documents',
-  'INSERT',
-  '(auth.role() = ''authenticated'')'
+  '(auth.role() = ''authenticated'' AND auth.uid()::text = (storage.foldername(name))[1] AND (coalesce(auth.jwt() -> ''app_metadata'' -> ''roles'', ''[]''::jsonb) ? ''professional''))'
 ) ON CONFLICT DO NOTHING;
 
 -- 4. Block all public SELECT — only service_role (server-side) can read

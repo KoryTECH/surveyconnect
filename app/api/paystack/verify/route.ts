@@ -12,14 +12,37 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const paystackResponse = await fetch(
-      `https://api.paystack.co/transaction/verify/${reference}`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+    const controller = new AbortController();
+    const timeoutMs = Number(process.env.PAYSTACK_TIMEOUT_MS ?? "8000");
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    let paystackResponse: Response;
+    try {
+      paystackResponse = await fetch(
+        `https://api.paystack.co/transaction/verify/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          },
+          signal: controller.signal,
         },
-      },
-    );
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return NextResponse.redirect(
+          new URL("/dashboard/client?payment=failed", request.url),
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!paystackResponse.ok) {
+      return NextResponse.redirect(
+        new URL("/dashboard/client?payment=failed", request.url),
+      );
+    }
 
     const paystackData = await paystackResponse.json();
 
@@ -42,18 +65,22 @@ export async function GET(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) {
-      const { data: ownerCheck } = await supabase
-        .from("contracts")
-        .select("client_id")
-        .eq("id", contractId)
-        .single();
+    if (!user) {
+      return NextResponse.redirect(
+        new URL("/dashboard/client?payment=failed", request.url),
+      );
+    }
 
-      if (!ownerCheck || ownerCheck.client_id !== user.id) {
-        return NextResponse.redirect(
-          new URL("/dashboard/client?payment=failed", request.url),
-        );
-      }
+    const { data: ownerCheck } = await supabase
+      .from("contracts")
+      .select("client_id")
+      .eq("id", contractId)
+      .single();
+
+    if (!ownerCheck || ownerCheck.client_id !== user.id) {
+      return NextResponse.redirect(
+        new URL("/dashboard/client?payment=failed", request.url),
+      );
     }
 
     const { data: contract } = await supabase
@@ -153,6 +180,7 @@ export async function GET(request: NextRequest) {
                 jobTitle,
                 otherParty: professionalProfile?.full_name ?? "professional",
                 role: "client",
+                  contractId,
               },
             }),
           }).catch(() => {});
@@ -170,6 +198,7 @@ export async function GET(request: NextRequest) {
                 jobTitle,
                 otherParty: clientProfile?.full_name ?? "client",
                 role: "professional",
+                  contractId,
               },
             }),
           }).catch(() => {});

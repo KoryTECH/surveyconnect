@@ -18,9 +18,16 @@ CREATE POLICY "applications_select" ON job_applications FOR SELECT
          EXISTS (SELECT 1 FROM jobs WHERE jobs.id = job_applications.job_id AND jobs.client_id = auth.uid()));
 CREATE POLICY "applications_insert_professional" ON job_applications FOR INSERT
   WITH CHECK (professional_id = auth.uid());
-CREATE POLICY "applications_update_own" ON job_applications FOR UPDATE
-  USING (professional_id = auth.uid() OR
-         EXISTS (SELECT 1 FROM jobs WHERE jobs.id = job_applications.job_id AND jobs.client_id = auth.uid()));
+DROP POLICY IF EXISTS "applications_update_own" ON job_applications;
+CREATE POLICY "applications_update_professional" ON job_applications FOR UPDATE
+  USING (professional_id = auth.uid())
+  WITH CHECK (professional_id = auth.uid());
+CREATE POLICY "applications_update_client_status" ON job_applications FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM jobs WHERE jobs.id = job_applications.job_id AND jobs.client_id = auth.uid()))
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM jobs WHERE jobs.id = job_applications.job_id AND jobs.client_id = auth.uid())
+    AND status IN ('pending', 'accepted', 'rejected')
+  );
 
 -- Contracts: only parties involved
 ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
@@ -42,7 +49,14 @@ CREATE POLICY "messages_insert_parties" ON messages FOR INSERT
 
 -- Notifications: own only
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "notifications_own" ON notifications FOR ALL USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "notifications_own" ON notifications;
+CREATE POLICY "notifications_select_own" ON notifications FOR SELECT
+  USING (user_id = auth.uid());
+CREATE POLICY "notifications_update_own" ON notifications FOR UPDATE
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+CREATE POLICY "notifications_delete_own" ON notifications FOR DELETE
+  USING (user_id = auth.uid());
 
 -- Reviews: parties of completed contract
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
@@ -50,12 +64,18 @@ CREATE POLICY "reviews_select_all" ON reviews FOR SELECT USING (true);
 CREATE POLICY "reviews_insert_client" ON reviews FOR INSERT
   WITH CHECK (reviewer_id = auth.uid() AND
     EXISTS (SELECT 1 FROM contracts WHERE contracts.id = reviews.contract_id
-      AND contracts.client_id = auth.uid() AND contracts.payment_released_at IS NOT NULL));
+      AND contracts.payment_released_at IS NOT NULL
+      AND (contracts.client_id = auth.uid() OR contracts.professional_id = auth.uid())));
 
 -- Professional profiles: own for write, all for read
 ALTER TABLE professional_profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "prof_profiles_select_all" ON professional_profiles FOR SELECT USING (true);
-CREATE POLICY "prof_profiles_write_own" ON professional_profiles FOR ALL USING (id = auth.uid());
+DROP POLICY IF EXISTS "prof_profiles_write_own" ON professional_profiles;
+CREATE POLICY "prof_profiles_insert_own" ON professional_profiles FOR INSERT
+  WITH CHECK (id = auth.uid());
+CREATE POLICY "prof_profiles_update_own" ON professional_profiles FOR UPDATE
+  USING (id = auth.uid())
+  WITH CHECK (id = auth.uid());
 
 -- Verification documents storage policy (add via Supabase dashboard or CLI):
 -- bucket: verification-documents

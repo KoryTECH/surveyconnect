@@ -73,9 +73,13 @@ export default function NotificationBellDropdown({
     const existing = notifications.find((item) => item.id === id);
     if (!existing || existing.is_read) return;
 
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, is_read: true } : item)),
-    );
+    setNotifications((prev) => {
+      const updated = prev.map((item) =>
+        item.id === id ? { ...item, is_read: true } : item,
+      );
+      onUnreadCountChange?.(updated.filter((item) => !item.is_read).length);
+      return updated;
+    });
 
     const response = await fetch("/api/notifications", {
       method: "PATCH",
@@ -90,10 +94,7 @@ export default function NotificationBellDropdown({
       return;
     }
 
-    const unread = notifications.filter(
-      (item) => item.id !== id && !item.is_read,
-    ).length;
-    onUnreadCountChange?.(unread);
+    // Already updated via setNotifications above.
   };
 
   const markAllAsRead = async () => {
@@ -120,12 +121,15 @@ export default function NotificationBellDropdown({
   };
 
   const formatDate = (value: string) =>
-    new Date(value).toLocaleString("en-GB", {
+    new Date(value).toLocaleString(
+      typeof navigator !== "undefined" ? navigator.language : undefined,
+      {
       day: "numeric",
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
-    });
+      },
+    );
 
   return (
     <div ref={rootRef} className="relative">

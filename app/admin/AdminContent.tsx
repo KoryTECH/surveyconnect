@@ -57,7 +57,9 @@ export default function AdminContent({
   const [pendingProfessionals, setPendingProfessionals] = useState<
     PendingProfessional[]
   >(initialPendingProfessionals);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<
+    { id: string; type: "verified" | "rejected" } | null
+  >(null);
   const [message, setMessage] = useState("");
 
   const getProfessionLabel = (type: string) => {
@@ -82,15 +84,26 @@ export default function AdminContent({
   };
 
   const handleViewDocument = async (pathOrUrl: string) => {
-    const response = await fetch("/api/admin/signed-url", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: pathOrUrl }),
-    });
-    const data = await response.json();
-    if (data.signedUrl) {
-      window.open(data.signedUrl, "_blank");
-    } else {
+    try {
+      const response = await fetch("/api/admin/signed-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: pathOrUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Signed URL request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.signedUrl) {
+        window.open(data.signedUrl, "_blank");
+        return;
+      }
+
+      throw new Error("Signed URL missing");
+    } catch (error) {
+      console.error("Failed to load document:", error);
       alert("Could not load document.");
     }
   };
@@ -100,45 +113,47 @@ export default function AdminContent({
     action: "verified" | "rejected",
     prof: PendingProfessional,
   ) => {
-    setActionLoading(professionalId);
+    setActionLoading({ id: professionalId, type: action });
     setMessage("");
 
-    const { error } = await supabase
-      .from("professional_profiles")
-      .update({ verification_status: action })
-      .eq("id", professionalId);
+    try {
+      const { error } = await supabase
+        .from("professional_profiles")
+        .update({ verification_status: action })
+        .eq("id", professionalId);
 
-    if (error) {
-      setMessage("Something went wrong.");
-      setActionLoading(null);
-      return;
-    }
-
-    if (action === "verified" && prof.license_url) {
-      let licensePath = prof.license_url;
-      if (prof.license_url.includes("/storage/v1/object/")) {
-        const parts = prof.license_url.split("/verification-documents/");
-        licensePath = parts[1] || prof.license_url;
+      if (error) {
+        setMessage("Something went wrong.");
+        return;
       }
-      await supabase.storage
-        .from("verification-documents")
-        .remove([licensePath]);
-    }
 
-    setPendingProfessionals((prev) =>
-      prev.filter((p) => p.id !== professionalId),
-    );
-    setStats((prev) => ({
-      ...prev,
-      pendingVerifications: Math.max(prev.pendingVerifications - 1, 0),
-    }));
-    setMessage(
-      action === "verified"
-        ? "Professional verified! License certificate deleted from storage."
-        : "Professional rejected.",
-    );
-    setTimeout(() => setMessage(""), 4000);
-    setActionLoading(null);
+      if (action === "verified" && prof.license_url) {
+        let licensePath = prof.license_url;
+        if (prof.license_url.includes("/storage/v1/object/")) {
+          const parts = prof.license_url.split("/verification-documents/");
+          licensePath = parts[1] || prof.license_url;
+        }
+        await supabase.storage
+          .from("verification-documents")
+          .remove([licensePath]);
+      }
+
+      setPendingProfessionals((prev) =>
+        prev.filter((p) => p.id !== professionalId),
+      );
+      setStats((prev) => ({
+        ...prev,
+        pendingVerifications: Math.max(prev.pendingVerifications - 1, 0),
+      }));
+      setMessage(
+        action === "verified"
+          ? "Professional verified! License certificate deleted from storage."
+          : "Professional rejected.",
+      );
+      setTimeout(() => setMessage(""), 4000);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   return (
@@ -373,7 +388,10 @@ export default function AdminContent({
                     <div className="flex flex-col gap-2 shrink-0">
                       <LoadingButton
                         onClick={() => handleVerify(prof.id, "verified", prof)}
-                        isLoading={actionLoading === prof.id}
+                        isLoading={
+                          actionLoading?.id === prof.id &&
+                          actionLoading?.type === "verified"
+                        }
                         loadingText="Updating..."
                         className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-sm font-semibold px-6 py-2 rounded-xl transition-colors"
                       >
@@ -381,7 +399,10 @@ export default function AdminContent({
                       </LoadingButton>
                       <LoadingButton
                         onClick={() => handleVerify(prof.id, "rejected", prof)}
-                        isLoading={actionLoading === prof.id}
+                        isLoading={
+                          actionLoading?.id === prof.id &&
+                          actionLoading?.type === "rejected"
+                        }
                         loadingText="Updating..."
                         className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 text-sm font-semibold px-6 py-2 rounded-xl transition-colors"
                       >

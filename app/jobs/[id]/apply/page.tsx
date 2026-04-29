@@ -35,6 +35,13 @@ export default function ApplyPage() {
 
   useEffect(() => {
     const init = async () => {
+      const jobId = typeof id === "string" ? id : Array.isArray(id) ? id[0] : undefined;
+      if (!jobId) {
+        setError("Job not found.");
+        setLoading(false);
+        return;
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -58,7 +65,7 @@ export default function ApplyPage() {
       const { data: jobData, error: jobError } = await supabase
         .from("jobs")
         .select("*")
-        .eq("id", id)
+        .eq("id", jobId)
         .single();
 
       if (jobError || !jobData) {
@@ -72,7 +79,7 @@ export default function ApplyPage() {
       const { data: existing } = await supabase
         .from("job_applications")
         .select("id")
-        .eq("job_id", id)
+        .eq("job_id", jobId)
         .eq("professional_id", user.id)
         .single();
 
@@ -98,30 +105,42 @@ export default function ApplyPage() {
     setSubmitting(true);
     setError("");
 
-    const jobId = typeof id === "string" ? id : String(id);
-    const response = await fetch("/api/apply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jobId,
-        coverLetter,
-        proposedRate,
-        availabilityDate: availability,
-      }),
-    });
-
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setError(result?.error || "Failed to submit application.");
-      if (response.status === 409) {
-        setAlreadyApplied(true);
-      }
+    const jobId = typeof id === "string" ? id : Array.isArray(id) ? id[0] : undefined;
+    if (!jobId) {
+      setError("Job not found.");
       setSubmitting(false);
       return;
     }
 
-    setSuccess(true);
-    setTimeout(() => router.push("/jobs"), 2000);
+    try {
+      const response = await fetch("/api/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId,
+          coverLetter,
+          proposedRate,
+          availabilityDate: availability,
+        }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(result?.error || "Failed to submit application.");
+        if (response.status === 409) {
+          setAlreadyApplied(true);
+        }
+        return;
+      }
+
+      setSuccess(true);
+      setTimeout(() => router.push("/jobs"), 2000);
+    } catch (error) {
+      console.error("Application submit failed:", error);
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const professionalReceives = proposedRate

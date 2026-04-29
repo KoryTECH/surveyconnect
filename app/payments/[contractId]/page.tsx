@@ -16,7 +16,13 @@ interface Contract {
 export default function PaymentPage() {
   const params = useParams();
   const router = useRouter();
-  const contractId = params.contractId as string;
+  const rawContractId = params.contractId;
+  const contractId =
+    typeof rawContractId === "string"
+      ? rawContractId
+      : Array.isArray(rawContractId)
+        ? rawContractId[0]
+        : undefined;
   const supabase = useMemo(() => createClient(), []);
 
   const [contract, setContract] = useState<Contract | null>(null);
@@ -25,6 +31,12 @@ export default function PaymentPage() {
   const [error, setError] = useState("");
 
   const fetchContract = useCallback(async () => {
+    if (!contractId) {
+      setError("Invalid contract");
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("contracts")
       .select(
@@ -52,6 +64,11 @@ export default function PaymentPage() {
   }, [fetchContract]);
 
   async function handlePayment() {
+    if (!contractId) {
+      setError("Invalid contract");
+      return;
+    }
+
     setPaying(true);
     setError("");
 

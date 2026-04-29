@@ -1,9 +1,18 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+if (!redisUrl || !redisToken) {
+  throw new Error(
+    "Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN configuration",
+  );
+}
+
 const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  url: redisUrl,
+  token: redisToken,
 });
 
 const limiters: Record<string, Ratelimit> = {};
@@ -21,6 +30,11 @@ export async function checkRateLimit(
     });
   }
 
-  const { success } = await limiters[windowKey].limit(key);
-  return success;
+  try {
+    const { success } = await limiters[windowKey].limit(key);
+    return success;
+  } catch (error) {
+    console.error("Rate limit check failed:", error);
+    return true;
+  }
 }

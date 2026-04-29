@@ -1,8 +1,9 @@
 import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://surveyconnect.vercel.app";
+  const envBase = process.env.NEXT_PUBLIC_APP_URL;
+  const base = (envBase ? envBase.replace(/\/+$/, "") : null) ??
+    "https://surveyconnect.vercel.app";
   return [
     {
       url: base,

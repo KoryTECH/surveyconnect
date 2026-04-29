@@ -22,7 +22,13 @@ export async function POST(request: NextRequest) {
     // Verify webhook signature — this is what makes it secure
     const hash = crypto.createHmac("sha512", secret).update(body).digest("hex");
 
-    if (hash !== signature) {
+    const hashBuffer = Buffer.from(hash, "hex");
+    const signatureBuffer = Buffer.from(signature, "hex");
+    const signaturesMatch =
+      hashBuffer.length === signatureBuffer.length &&
+      crypto.timingSafeEqual(hashBuffer, signatureBuffer);
+
+    if (!signaturesMatch) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
@@ -71,7 +77,7 @@ export async function POST(request: NextRequest) {
 
       if (contract && contract.status === "pending") {
         // Only update if still pending (avoid duplicate updates)
-        await supabase
+        const { data: updatedRows, error: updateError } = await supabase
           .from("contracts")
           .update({
             status: "active",
@@ -80,9 +86,18 @@ export async function POST(request: NextRequest) {
           })
           .eq("id", contractId)
           .eq("status", "pending")
-          .is("payment_reference", null);
+          .is("payment_reference", null)
+          .select("id");
 
-        console.log(`Contract ${contractId} activated via webhook`);
+        if (updateError || !updatedRows || updatedRows.length === 0) {
+          console.error("Webhook contract update failed:", {
+            contractId,
+            reference,
+            error: updateError,
+          });
+        } else {
+          console.log(`Contract ${contractId} activated via webhook`);
+        }
       }
     }
 
@@ -98,18 +113,42 @@ export async function POST(request: NextRequest) {
     ) {
       const { reference } = event.data || {};
       console.error(`Transfer failed/reversed: ${reference}`);
-      await fetch(
-        `${process.env.NEXT_PUBLIC_APP_URL}/api/send-verification-email`,
-        {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+      if (!appUrl) {
+        console.error("NEXT_PUBLIC_APP_URL is not configured");
+        return NextResponse.json({ received: true });
+      }
+
+      try {
+        const alertHeaders: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (process.env.ADMIN_ALERT_SECRET) {
+          alertHeaders["x-admin-alert-secret"] =
+            process.env.ADMIN_ALERT_SECRET;
+        }
+
+        const alertResponse = await fetch(`${appUrl}/api/admin/alerts`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: alertHeaders,
           body: JSON.stringify({
-            professionalName: "SYSTEM",
-            professionType: `Transfer failed: ${reference}`,
-            userId: "admin-alert",
+            type: "transfer_failed",
+            reference,
+            message: "Paystack transfer failed or was reversed.",
           }),
-        },
-      ).catch(() => {});
+        });
+
+        if (!alertResponse.ok) {
+          const errorText = await alertResponse.text().catch(() => "");
+          console.error("Admin alert failed:", {
+            reference,
+            status: alertResponse.status,
+            errorText,
+          });
+        }
+      } catch (error) {
+        console.error("Admin alert request failed:", error);
+      }
       return NextResponse.json({ received: true });
     }
 

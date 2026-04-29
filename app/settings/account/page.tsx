@@ -602,13 +602,13 @@ export default function AccountSettingsPage() {
             Legal
           </h3>
           <Link
-            href="#"
+            href="/terms"
             className="block text-sm text-green-600 hover:text-green-700"
           >
             Terms and Conditions
           </Link>
           <Link
-            href="#"
+            href="/privacy"
             className="block text-sm text-green-600 hover:text-green-700"
           >
             Privacy Policy

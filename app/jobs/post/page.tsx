@@ -100,9 +100,14 @@ export default function PostJobPage() {
       return;
     }
 
+    if (formData.location_country === "Other" && !customCountry.trim()) {
+      setError("Please enter your country.");
+      return;
+    }
+
     const finalCountry =
       formData.location_country === "Other"
-        ? customCountry
+        ? customCountry.trim()
         : formData.location_country;
 
     setLoading(true);

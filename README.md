@@ -16,7 +16,15 @@ A marketplace for geospatial professionals. Clients post surveying, GIS, and dro
 
 1. Clone the repo
 2. Copy `.env.example` to `.env.local` and fill in all values
-3. Run Supabase migrations in `supabase/migrations/` in order
+3. Run Supabase migrations from the project root:
+
+```bash
+npx supabase db reset
+```
+
+This resets the local DB and applies all migrations in order from
+`supabase/migrations/`. Alternatively, use `npx supabase db push` or apply the
+SQL files individually in order.
 4. Install dependencies and start dev server:
 
 ```bash
@@ -40,17 +48,27 @@ See `.env.example` for all required variables. Key ones:
 | `UPSTASH_REDIS_REST_TOKEN`      | Upstash Redis token                         |
 | `NEXT_PUBLIC_APP_URL`           | Full production URL (no trailing slash)     |
 | `ADMIN_EMAIL`                   | Email address for admin alerts              |
-| `EXCHANGE_RATE_API_KEY`         | ExchangeRate-API key for USD→NGN conversion |
+| `EXCHANGE_RATE_API_KEY`         | ExchangeRate-API (exchangerate-api.com) key for USD→NGN conversion |
+
+Sign up for an API key at https://www.exchangerate-api.com/.
 
 ## Migrations
 
-Run in order from `supabase/migrations/`:
+Apply all migrations from the project root:
+
+```bash
+npx supabase db reset
+```
+
+If you prefer to apply them individually, run the SQL files in order from
+`supabase/migrations/`:
 
 1. `20260425_add_exchange_columns.sql`
 2. `20260425_rename_payment_reference.sql`
 3. `20260426_onboarding_notifications_settings.sql`
 4. `20260428_applications_count_trigger.sql`
 5. `20260428_rls_policies.sql`
+6. `20260429_unique_constraints.sql`
 
 ## Architecture
 

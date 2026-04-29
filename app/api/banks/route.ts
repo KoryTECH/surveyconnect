@@ -26,15 +26,29 @@ export async function GET() {
       return NextResponse.json({ banks: [] });
     }
 
-    const response = await fetch(
-      "https://api.paystack.co/bank?country=nigeria&currency=NGN",
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    let response: Response;
+    try {
+      response = await fetch(
+        "https://api.paystack.co/bank?country=nigeria&currency=NGN",
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          },
+          cache: "no-store",
+          signal: controller.signal,
         },
-        cache: "no-store",
-      },
-    );
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return NextResponse.json({ error: "Request timed out" }, { status: 504 });
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const data = await response.json();
 

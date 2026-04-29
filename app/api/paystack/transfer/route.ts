@@ -146,6 +146,23 @@ export async function POST(request: NextRequest) {
         },
       );
 
+      if (!recipientResponse.ok) {
+        const errorText = await recipientResponse.text().catch(() => "");
+        await supabase
+          .from("contracts")
+          .update({ payment_released_at: null })
+          .eq("id", contractId);
+        console.error("Recipient creation failed:", {
+          contractId,
+          httpStatus: recipientResponse.status,
+          errorText,
+        });
+        return NextResponse.json(
+          { error: "Failed to create transfer recipient" },
+          { status: 502 },
+        );
+      }
+
       const recipientData = await recipientResponse.json();
 
       if (!recipientData.status) {
@@ -183,6 +200,24 @@ export async function POST(request: NextRequest) {
       }),
     });
 
+    if (!transferResponse.ok) {
+      const errorText = await transferResponse.text().catch(() => "");
+      await supabase
+        .from("contracts")
+        .update({ payment_released_at: null })
+        .eq("id", contractId);
+      return NextResponse.json(
+        {
+          error: "Transfer failed",
+          debug: {
+            httpStatus: transferResponse.status,
+            errorText,
+          },
+        },
+        { status: 502 },
+      );
+    }
+
     const transferData = await transferResponse.json();
 
     if (!transferData.status) {
@@ -193,13 +228,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Transfer failed" }, { status: 500 });
     }
 
-    await supabase
+    const { error: feeUpdateError } = await supabase
       .from("contracts")
       .update({
         professional_receives: professionalReceivesUsd,
         platform_fee: platformFeeUsd,
       })
       .eq("id", contractId);
+
+    if (feeUpdateError) {
+      console.error("Failed to record transfer fees:", {
+        contractId,
+        professionalReceivesUsd,
+        platformFeeUsd,
+        transferId: transferData?.data?.id,
+        transferStatus: transferData?.data?.status,
+        error: feeUpdateError,
+      });
+    }
 
     const notifyUrl = new URL("/api/notify", request.url);
     if (professional?.email && professional?.full_name) {
@@ -213,6 +259,7 @@ export async function POST(request: NextRequest) {
           details: {
             amount: professionalReceivesUsd.toFixed(2),
             jobTitle: contract.jobs?.title ?? "your job",
+             contractId,
           },
         }),
       }).catch(() => {});
