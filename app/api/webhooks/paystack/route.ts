@@ -3,87 +3,119 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
-	try {
-		const body = await request.text();
-		const signature = request.headers.get("x-paystack-signature");
+  try {
+    const body = await request.text();
+    const signature = request.headers.get("x-paystack-signature");
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+    if (!secret) {
+      console.error("PAYSTACK_SECRET_KEY is not configured");
+      return NextResponse.json(
+        { error: "Server misconfigured" },
+        { status: 500 },
+      );
+    }
 
-		if (!signature) {
-			return NextResponse.json({ error: "No signature" }, { status: 400 });
-		}
+    if (!signature) {
+      return NextResponse.json({ error: "No signature" }, { status: 400 });
+    }
 
-		// Verify webhook signature — this is what makes it secure
-		const hash = crypto
-			.createHmac("sha512", process.env.PAYSTACK_SECRET_KEY!)
-			.update(body)
-			.digest("hex");
+    // Verify webhook signature — this is what makes it secure
+    const hash = crypto.createHmac("sha512", secret).update(body).digest("hex");
 
-		if (hash !== signature) {
-			console.error("Invalid webhook signature");
-			return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-		}
+    if (hash !== signature) {
+      console.error("Invalid webhook signature");
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    }
 
-		const event = JSON.parse(body);
+    const event = JSON.parse(body);
 
-		// Handle successful payment
-		if (event.event === "charge.success") {
-			const { reference, metadata, status } = event.data;
+    // Handle successful payment
+    if (event.event === "charge.success") {
+      const { reference, metadata, status } = event.data;
 
-			if (status !== "success") {
-				return NextResponse.json({ received: true });
-			}
+      if (status !== "success") {
+        return NextResponse.json({ received: true });
+      }
 
-			const contractId = metadata?.contractId;
+      const contractId = metadata?.contractId;
 
-			if (!contractId) {
-				return NextResponse.json({ received: true });
-			}
+      if (!contractId) {
+        return NextResponse.json({ received: true });
+      }
 
-			const supabase = await createClient();
+      const supabase = await createClient();
 
-			// Double confirm contract is active (verify route may have already done this)
-			const { data: contract } = await supabase
-				.from("contracts")
-				.select("status, ngn_amount_paid")
-				.eq("id", contractId)
-				.single();
+      // Double confirm contract is active (verify route may have already done this)
+      const { data: contract } = await supabase
+        .from("contracts")
+        .select("status, ngn_amount_paid")
+        .eq("id", contractId)
+        .single();
 
-			const expectedAmountKobo = Number(contract?.ngn_amount_paid || 0) * 100;
-			const paidAmountKobo = Number(event.data.amount || 0);
+      const expectedAmountKobo = Number(contract?.ngn_amount_paid || 0) * 100;
+      const paidAmountKobo = Number(event.data.amount || 0);
 
-			if (
-				expectedAmountKobo <= 0 ||
-				paidAmountKobo !== expectedAmountKobo ||
-				event.data.currency !== "NGN"
-			) {
-				console.error("Payment amount mismatch on webhook:", {
-					contractId,
-					expectedAmountKobo,
-					paidAmountKobo,
-					currency: event.data.currency,
-				});
-				return NextResponse.json({ received: true });
-			}
+      if (
+        expectedAmountKobo <= 0 ||
+        paidAmountKobo !== expectedAmountKobo ||
+        event.data.currency !== "NGN"
+      ) {
+        console.error("Payment amount mismatch on webhook:", {
+          contractId,
+          expectedAmountKobo,
+          paidAmountKobo,
+          currency: event.data.currency,
+        });
+        return NextResponse.json({ received: true });
+      }
 
-			if (contract && contract.status === "pending") {
-				// Only update if still pending (avoid duplicate updates)
-				await supabase
-					.from("contracts")
-					.update({
-						status: "active",
-						start_date: new Date().toISOString(),
-						payment_reference: reference,
-					})
-					.eq("id", contractId)
-					.eq("status", "pending")
-					.is("payment_reference", null);
+      if (contract && contract.status === "pending") {
+        // Only update if still pending (avoid duplicate updates)
+        await supabase
+          .from("contracts")
+          .update({
+            status: "active",
+            start_date: new Date().toISOString(),
+            payment_reference: reference,
+          })
+          .eq("id", contractId)
+          .eq("status", "pending")
+          .is("payment_reference", null);
 
-				console.log(`Contract ${contractId} activated via webhook`);
-			}
-		}
+        console.log(`Contract ${contractId} activated via webhook`);
+      }
+    }
 
-		return NextResponse.json({ received: true });
-	} catch (error) {
-		console.error("Webhook error:", error);
-		return NextResponse.json({ error: "Webhook failed" }, { status: 500 });
-	}
+    if (event.event === "transfer.success") {
+      const { amount, reference } = event.data || {};
+      console.log(`Transfer success: ${reference}, amount: ${amount}`);
+      return NextResponse.json({ received: true });
+    }
+
+    if (
+      event.event === "transfer.failed" ||
+      event.event === "transfer.reversed"
+    ) {
+      const { reference } = event.data || {};
+      console.error(`Transfer failed/reversed: ${reference}`);
+      await fetch(
+        `${process.env.NEXT_PUBLIC_APP_URL}/api/send-verification-email`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            professionalName: "SYSTEM",
+            professionType: `Transfer failed: ${reference}`,
+            userId: "admin-alert",
+          }),
+        },
+      ).catch(() => {});
+      return NextResponse.json({ received: true });
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    return NextResponse.json({ error: "Webhook failed" }, { status: 500 });
+  }
 }

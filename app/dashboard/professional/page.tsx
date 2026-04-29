@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -34,8 +34,7 @@ export default function ProfessionalDashboard() {
     avgRating: null as number | null,
   });
   const { theme, toggleTheme } = useTheme();
-  const supabaseRef = useRef(createClient());
-  const supabase = supabaseRef.current;
+  const supabase = useMemo(() => createClient(), []);
 
   const getCurrentUser = useCallback<
     () => Promise<any>
@@ -57,7 +56,7 @@ export default function ProfessionalDashboard() {
     }
 
     return user;
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     const getProfile = async () => {
@@ -186,7 +185,7 @@ export default function ProfessionalDashboard() {
     };
 
     getProfile();
-  }, [getCurrentUser, router]);
+  }, [getCurrentUser, router, supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

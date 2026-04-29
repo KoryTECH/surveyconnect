@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# SurveyConnectHub
+
+A marketplace for geospatial professionals. Clients post surveying, GIS, and drone jobs. Verified professionals apply, contracts are funded via escrow, and payment is released on completion.
+
+## Stack
+
+- **Framework:** Next.js 15 (App Router, TypeScript)
+- **Database & Auth:** Supabase (PostgreSQL + RLS)
+- **Payments:** Paystack (NGN escrow)
+- **Email:** Resend
+- **Rate Limiting:** Upstash Redis
+- **Styling:** Tailwind CSS
+- **Deployment:** Vercel
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repo
+2. Copy `.env.example` to `.env.local` and fill in all values
+3. Run Supabase migrations in `supabase/migrations/` in order
+4. Install dependencies and start dev server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+See `.env.example` for all required variables. Key ones:
 
-## Learn More
+| Variable                        | Purpose                                     |
+| ------------------------------- | ------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL                        |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key                           |
+| `PAYSTACK_SECRET_KEY`           | Paystack secret (server-side only)          |
+| `RESEND_API_KEY`                | Resend email API key                        |
+| `UPSTASH_REDIS_REST_URL`        | Upstash Redis URL for rate limiting         |
+| `UPSTASH_REDIS_REST_TOKEN`      | Upstash Redis token                         |
+| `NEXT_PUBLIC_APP_URL`           | Full production URL (no trailing slash)     |
+| `ADMIN_EMAIL`                   | Email address for admin alerts              |
+| `EXCHANGE_RATE_API_KEY`         | ExchangeRate-API key for USD→NGN conversion |
 
-To learn more about Next.js, take a look at the following resources:
+## Migrations
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Run in order from `supabase/migrations/`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+1. `20260425_add_exchange_columns.sql`
+2. `20260425_rename_payment_reference.sql`
+3. `20260426_onboarding_notifications_settings.sql`
+4. `20260428_applications_count_trigger.sql`
+5. `20260428_rls_policies.sql`
 
-## Deploy on Vercel
+## Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+- `/app/api/` — Server-side API routes (auth, payments, notifications)
+- `/app/dashboard/` — Protected dashboard pages (client + professional)
+- `/app/admin/` — Admin verification dashboard
+- `/components/` — Shared UI components
+- `/lib/` — Supabase client, rate limiting, CSRF helpers
+- `/types/` — TypeScript database interfaces
+- `/supabase/migrations/` — SQL migration files

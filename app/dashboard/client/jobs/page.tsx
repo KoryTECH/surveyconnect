@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -9,8 +8,7 @@ import { MapPin, Calendar, Clock, DollarSign, Users } from "lucide-react";
 
 export default function ClientJobsPage() {
   const router = useRouter();
-  const supabaseRef = useRef(createClient());
-  const supabase = supabaseRef.current;
+  const supabase = useMemo(() => createClient(), []);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +32,7 @@ export default function ClientJobsPage() {
       setLoading(false);
     };
     getData();
-  }, [router]);
+  }, [router, supabase]);
 
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString("en-GB", {

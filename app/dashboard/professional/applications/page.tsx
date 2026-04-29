@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -17,8 +17,7 @@ import {
 
 export default function ProfessionalApplicationsPage() {
   const router = useRouter();
-  const supabaseRef = useRef(createClient());
-  const supabase = supabaseRef.current;
+  const supabase = useMemo(() => createClient(), []);
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +43,7 @@ export default function ProfessionalApplicationsPage() {
       setLoading(false);
     };
     getData();
-  }, [router]);
+  }, [router, supabase]);
 
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString("en-GB", {

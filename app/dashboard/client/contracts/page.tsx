@@ -5,10 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { MessageSquare, MessageSquareOff, FileCheck } from "lucide-react";
+import { CardSkeleton } from "@/components/ui/Skeleton";
+import type { Contract, Job, Profile } from "@/types/database";
+
+type ContractRow = Contract & {
+  jobs: Pick<Job, "title" | "description"> | null;
+  profiles: Pick<Profile, "full_name" | "email"> | null;
+};
 
 export default function ClientContractsPage() {
   const router = useRouter();
-  const [contracts, setContracts] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [releasing, setReleasing] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -73,17 +80,23 @@ export default function ClientContractsPage() {
     }
   };
 
-  const formatDate = (date: string) =>
-    new Date(date).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+  const formatDate = (date: string | null) =>
+    date
+      ? new Date(date).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="max-w-4xl mx-auto px-6 py-8 space-y-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <CardSkeleton key={`client-contracts-skeleton-${index}`} />
+          ))}
+        </div>
       </div>
     );
   }

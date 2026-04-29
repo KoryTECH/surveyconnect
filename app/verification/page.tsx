@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -18,7 +18,7 @@ const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "pdf"];
 
 export default function VerificationPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -70,7 +70,7 @@ export default function VerificationPage() {
     };
 
     getData();
-  }, [router]);
+  }, [router, supabase]);
 
   const getProfessionLabel = (type: string) => {
     const labels: any = {

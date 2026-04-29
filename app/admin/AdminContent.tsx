@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import type { Profile, ProfessionalProfile } from "@/types/database";
 import {
   Briefcase,
   CheckCircle2,
@@ -14,6 +15,7 @@ import {
   Info,
   Users,
 } from "lucide-react";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export type AdminStats = {
   totalUsers: number;
@@ -25,21 +27,19 @@ export type AdminStats = {
   pendingVerifications: number;
 };
 
-type PendingProfileInfo = {
-  full_name: string | null;
-  email: string | null;
-  country: string | null;
-};
+type PendingProfileInfo = Pick<Profile, "full_name" | "email" | "country">;
 
-export type PendingProfessional = {
-  id: string;
-  profession_type: string;
-  license_number: string | null;
-  years_experience: number;
-  id_document_url: string | null;
-  license_url: string | null;
-  verification_status: string;
-  created_at: string;
+export type PendingProfessional = Pick<
+  ProfessionalProfile,
+  | "id"
+  | "profession_type"
+  | "license_number"
+  | "years_experience"
+  | "id_document_url"
+  | "license_url"
+  | "verification_status"
+  | "created_at"
+> & {
   profiles: PendingProfileInfo | null;
 };
 
@@ -82,20 +82,15 @@ export default function AdminContent({
   };
 
   const handleViewDocument = async (pathOrUrl: string) => {
-    let path = pathOrUrl;
-    if (pathOrUrl.includes("/storage/v1/object/")) {
-      const parts = pathOrUrl.split("/verification-documents/");
-      path = parts[1] || pathOrUrl;
-    }
-
-    const { data, error } = await supabase.storage
-      .from("verification-documents")
-      .createSignedUrl(path, 60 * 60);
-
-    if (data?.signedUrl) {
+    const response = await fetch("/api/admin/signed-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: pathOrUrl }),
+    });
+    const data = await response.json();
+    if (data.signedUrl) {
       window.open(data.signedUrl, "_blank");
     } else {
-      console.error("Signed URL error:", error);
       alert("Could not load document.");
     }
   };
@@ -376,22 +371,22 @@ export default function AdminContent({
                     </div>
 
                     <div className="flex flex-col gap-2 shrink-0">
-                      <button
+                      <LoadingButton
                         onClick={() => handleVerify(prof.id, "verified", prof)}
-                        disabled={actionLoading === prof.id}
+                        isLoading={actionLoading === prof.id}
+                        loadingText="Updating..."
                         className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-sm font-semibold px-6 py-2 rounded-xl transition-colors"
                       >
-                        {actionLoading === prof.id
-                          ? "Processing..."
-                          : "Approve"}
-                      </button>
-                      <button
+                        Approve
+                      </LoadingButton>
+                      <LoadingButton
                         onClick={() => handleVerify(prof.id, "rejected", prof)}
-                        disabled={actionLoading === prof.id}
+                        isLoading={actionLoading === prof.id}
+                        loadingText="Updating..."
                         className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 text-sm font-semibold px-6 py-2 rounded-xl transition-colors"
                       >
                         Reject
-                      </button>
+                      </LoadingButton>
                     </div>
                   </div>
                 </div>

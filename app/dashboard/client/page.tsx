@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useTheme } from "@/components/ThemeProvider";
@@ -35,8 +34,7 @@ export default function ClientDashboard() {
     completedProjects: 0,
   });
   const { theme, toggleTheme } = useTheme();
-  const supabaseRef = useRef(createClient());
-  const supabase = supabaseRef.current;
+  const supabase = useMemo(() => createClient(), []);
 
   const getCurrentUser = useCallback(async (): Promise<any> => {
     const {
@@ -56,7 +54,7 @@ export default function ClientDashboard() {
     }
 
     return user;
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     const getProfile = async () => {
@@ -187,7 +185,7 @@ export default function ClientDashboard() {
     };
 
     getProfile();
-  }, []);
+  }, [getCurrentUser, router, supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

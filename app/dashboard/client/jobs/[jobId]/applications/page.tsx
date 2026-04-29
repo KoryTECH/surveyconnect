@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import type { Job, JobApplication, Profile } from "@/types/database";
 import {
   Calendar,
   CalendarDays,
@@ -18,8 +19,12 @@ export default function JobApplicationsPage() {
   const router = useRouter();
   const { jobId } = useParams();
 
-  const [job, setJob] = useState<any>(null);
-  const [applications, setApplications] = useState<any[]>([]);
+  const [job, setJob] = useState<Job | null>(null);
+  const [applications, setApplications] = useState<
+    (JobApplication & {
+      profiles: Pick<Profile, "full_name" | "country" | "email"> | null;
+    })[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState<string | null>(null);
 
@@ -72,6 +77,9 @@ export default function JobApplicationsPage() {
     applicationId: string,
     professionalId: string,
   ) => {
+    if (!job) {
+      return;
+    }
     const supabase = createClient();
     setAccepting(applicationId);
 
