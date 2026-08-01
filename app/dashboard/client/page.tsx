@@ -149,24 +149,31 @@ export default function ClientDashboard() {
 
 				let channel: ReturnType<typeof supabase.channel> | null = null;
 
-				if (activeContracts && activeContracts.length > 0) {
-					channel = supabase
-						.channel("client-unread-messages")
-						.on(
-							"postgres_changes",
-							{ event: "INSERT", schema: "public", table: "messages" },
-							(payload) => {
-								const msg = payload.new as any;
-								const isMyContract = activeContracts.some(
-									(c) => c.id === msg.contract_id,
-								);
-								if (isMyContract && msg.sender_id !== user.id) {
-									setUnreadCount((prev) => prev + 1);
-								}
-							},
-						)
-						.subscribe();
-				}
+			if (activeContracts && activeContracts.length > 0) {
+				// Unique channel name per mount — without this, React StrictMode
+				// (dev only) double-mounts the effect and the second mount's
+				// .channel("client-unread-messages") returns the still-
+				// subscribed channel from the first mount before cleanup runs,
+				// causing "cannot add postgres_changes callbacks after
+				// subscribe()" warning and silently dropping the handler.
+				const channelName = `client-unread-messages-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+				channel = supabase
+					.channel(channelName)
+					.on(
+						"postgres_changes",
+						{ event: "INSERT", schema: "public", table: "messages" },
+						(payload) => {
+							const msg = payload.new as any;
+							const isMyContract = activeContracts.some(
+								(c) => c.id === msg.contract_id,
+							);
+							if (isMyContract && msg.sender_id !== user.id) {
+								setUnreadCount((prev) => prev + 1);
+							}
+						},
+					)
+					.subscribe();
+			}
 
 				return () => {
 					if (channel) supabase.removeChannel(channel);

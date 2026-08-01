@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { contractId } = body;
+    const { contractId, milestoneId } = body;
 
     if (!contractId) {
       return NextResponse.json(
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
     // Look up contract server-side — never trust client-sent amounts
     const { data: contract, error: contractError } = await supabase
       .from("contracts")
-      .select("id, agreed_budget, status, client_id")
+      .select("id, agreed_budget, status, client_id, is_milestone_based")
       .eq("id", contractId)
       .single();
 
@@ -224,15 +224,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (contract.status !== "pending") {
-      return NextResponse.json(
-        { error: "Contract is not in a payable state" },
-        { status: 400 },
-      );
-    }
-
     if (contract.client_id !== user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    // Figure out what we are funding: a single milestone, or the whole
+    // contract (the historical flat-rate flow). For milestone funding the
+    // contract can be in a number of states (pending/active) — we only
+    // require the targeted milestone be `pending`. For the flat-rate flow
+    // we keep the original "contract must be pending" rule for back-compat.
+    let fundingAmount: number;
+    let fundingMilestoneId: string | null = null;
+
+    if (milestoneId) {
+      if (contract.is_milestone_based !== true) {
+        return NextResponse.json(
+          { error: "Contract is not milestone-based" },
+          { status: 400 },
+        );
+      }
+      const { data: milestone, error: milestoneError } = await supabase
+        .from("milestones")
+        .select("id, amount, status, contract_id")
+        .eq("id", milestoneId)
+        .eq("contract_id", contractId)
+        .single();
+
+      if (milestoneError || !milestone) {
+        return NextResponse.json(
+          { error: "Milestone not found" },
+          { status: 404 },
+        );
+      }
+      if (milestone.status !== "pending") {
+        return NextResponse.json(
+          { error: "Milestone is not in a payable state" },
+          { status: 400 },
+        );
+      }
+      fundingAmount = Number(milestone.amount);
+      fundingMilestoneId = milestone.id;
+    } else {
+      if (contract.status !== "pending") {
+        return NextResponse.json(
+          { error: "Contract is not in a payable state" },
+          { status: 400 },
+        );
+      }
+      fundingAmount = Number(contract.agreed_budget);
     }
 
     // Fetch exchange rate USD → NGN (cached in Redis for 5 min)
@@ -244,8 +283,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5% client fee on top of agreed budget
-    const agreedBudget = Number(contract.agreed_budget);
+    // 5% client fee on top of the funded amount
+    const agreedBudget = fundingAmount;
     const clientTotal = agreedBudget * 1.05;
     const ngnAmount = Math.round(clientTotal * exchangeRate);
 
@@ -276,7 +315,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const reference = `SC-${contractId}-${Date.now()}`;
+    const reference = fundingMilestoneId
+      ? `SC-M-${milestoneId}-${Date.now()}`
+      : `SC-${contractId}-${Date.now()}`;
 
     const paystackPayload = {
       amount: amountInKobo,
@@ -284,6 +325,7 @@ export async function POST(request: NextRequest) {
       reference,
       metadata: {
         contractId,
+        milestoneId: fundingMilestoneId,
         userId: user.id,
         agreedBudget,
         clientTotal,
@@ -316,19 +358,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Persist exchange data only after Paystack init succeeds
-    const { error: amountPersistError } = await supabase
-      .from("contracts")
-      .update({ ngn_amount_paid: ngnAmount, exchange_rate_used: exchangeRate })
-      .eq("id", contractId);
+    // Persist exchange data only after Paystack init succeeds.
+    // For milestone funding: stamp the payment reference on the milestone row
+    // (status stays "pending" until the Paystack webhook confirms it as "funded").
+    // For contract funding (flat-rate flow): keep the original persist behavior.
+    if (fundingMilestoneId) {
+      const { error: milestonePersistError } = await supabase
+        .from("milestones")
+        .update({ funded_reference: reference })
+        .eq("id", fundingMilestoneId)
+        .eq("status", "pending");
 
-    if (amountPersistError) {
-      // Rollback is not possible here since Paystack already initialized;
-      // the user can retry and the payment will be linked via metadata
-      return NextResponse.json(
-        { error: "Could not prepare payment" },
-        { status: 500 },
-      );
+      if (milestonePersistError) {
+        return NextResponse.json(
+          { error: "Could not prepare milestone payment" },
+          { status: 500 },
+        );
+      }
+    } else {
+      const { error: amountPersistError } = await supabase
+        .from("contracts")
+        .update({
+          ngn_amount_paid: ngnAmount,
+          exchange_rate_used: exchangeRate,
+        })
+        .eq("id", contractId);
+
+      if (amountPersistError) {
+        // Rollback is not possible here since Paystack already initialized;
+        // the user can retry and the payment will be linked via metadata
+        return NextResponse.json(
+          { error: "Could not prepare payment" },
+          { status: 500 },
+        );
+      }
     }
 
     return NextResponse.json({

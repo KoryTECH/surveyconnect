@@ -108,37 +108,44 @@ export default function MessagesPage() {
 				if (!isMounted) return;
 				setLoading(false);
 
-				channel = supabase
-					.channel(`messages:${contractId}`)
-					.on(
-						"postgres_changes",
-						{
-							event: "INSERT",
-							schema: "public",
-							table: "messages",
-							filter: `contract_id=eq.${contractId}`,
-						},
-						async (payload) => {
-							const { data: newMsg } = await supabase
-								.from("messages")
-								.select("*, profiles(full_name)")
-								.eq("id", payload.new.id)
-								.single();
+			// Unique channel name per mount — without this, React StrictMode
+			// (dev only) double-mounts the effect and the second mount's
+			// .channel(`messages:${contractId}`) returns the still-subscribed
+			// channel from the first mount before cleanup runs, causing
+			// "cannot add postgres_changes callbacks after subscribe()" warning
+			// and silently dropping the INSERT handler.
+			const channelName = `messages:${contractId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+			channel = supabase
+				.channel(channelName)
+				.on(
+					"postgres_changes",
+					{
+						event: "INSERT",
+						schema: "public",
+						table: "messages",
+						filter: `contract_id=eq.${contractId}`,
+					},
+					async (payload) => {
+						const { data: newMsg } = await supabase
+							.from("messages")
+							.select("*, profiles(full_name)")
+							.eq("id", payload.new.id)
+							.single();
 
-							if (newMsg && isMounted) {
-								setMessages((prev) => [...prev, newMsg]);
+						if (newMsg && isMounted) {
+							setMessages((prev) => [...prev, newMsg]);
 
-								// Mark as read immediately if message is from the other person
-								if (newMsg.sender_id !== user.id) {
-									await supabase
-										.from("messages")
-										.update({ is_read: true })
-										.eq("id", newMsg.id);
-								}
+							// Mark as read immediately if message is from the other person
+							if (newMsg.sender_id !== user.id) {
+								await supabase
+									.from("messages")
+									.update({ is_read: true })
+									.eq("id", newMsg.id);
 							}
-						},
-					)
-					.subscribe();
+						}
+					},
+				)
+				.subscribe();
 			} catch (error) {
 				console.error("Failed to initialize messages:", error);
 				if (isMounted) {

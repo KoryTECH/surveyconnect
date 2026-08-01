@@ -1,7 +1,18 @@
 import type { Metadata } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import PublicLayoutShell from "@/components/PublicLayoutShell";
+
+const inter = Inter({
+	subsets: ["latin"],
+	variable: "--font-sans",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+	subsets: ["latin"],
+	variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
 	title: {
@@ -62,6 +73,7 @@ export default function RootLayout({
 		<html
 			lang="en"
 			suppressHydrationWarning
+			className={`${inter.variable} ${jetbrainsMono.variable}`}
 		>
 			<body>
 				<ThemeProvider>

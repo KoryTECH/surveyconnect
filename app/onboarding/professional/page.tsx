@@ -12,6 +12,10 @@ import {
 	SOFTWARE_TOOL_OPTIONS as softwareToolOptions,
 	PORTFOLIO_IMAGE_TYPES,
 	MAX_PORTFOLIO_IMAGE_SIZE,
+	SURVEY_EQUIPMENT_OPTIONS as surveyEquipmentOptions,
+	DELIVERY_FORMAT_OPTIONS as deliveryFormatOptions,
+	JOB_TYPE_OPTIONS as jobTypeOptions,
+	ACCREDITATION_KEYS as accreditationKeys,
 } from "@/lib/constants";
 
 export default function ProfessionalOnboardingPage() {
@@ -46,6 +50,11 @@ export default function ProfessionalOnboardingPage() {
 		custom_profession: "",
 		years_experience: "",
 		license_number: "",
+		survey_equipment: [] as string[],
+		delivery_formats: [] as string[],
+		job_types_supported: [] as string[],
+		accreditations: {} as Record<string, string>,
+		service_area_label: "",
 	});
 
 	const [portfolioForm, setPortfolioForm] = useState({
@@ -149,13 +158,13 @@ export default function ProfessionalOnboardingPage() {
 				return;
 			}
 
-			const { data: professional } = await supabase
-				.from("professional_profiles")
-				.select(
-					"onboarding_completed, onboarding_step, profession_type, years_experience, license_number, software_tools",
-				)
-				.eq("id", user.id)
-				.maybeSingle();
+		const { data: professional } = await supabase
+			.from("professional_profiles")
+			.select(
+				"onboarding_completed, onboarding_step, profession_type, years_experience, license_number, software_tools, survey_equipment, delivery_formats, job_types_supported, accreditations, service_area_label",
+			)
+			.eq("id", user.id)
+			.maybeSingle();
 
 			if (professional?.onboarding_completed) {
 				router.push("/dashboard/professional");
@@ -190,20 +199,25 @@ export default function ProfessionalOnboardingPage() {
 				? storedProfessionType
 				: "";
 
-			setFormData({
-				full_name: profile.full_name || "",
-				phone: profile.phone || "",
-				country: profile.country || "",
-				city: profile.city || "",
-				bio: profile.bio || "",
-				software_tools: professional?.software_tools || [],
-				profession_type: initialProfessionType,
-				custom_profession: initialCustomProfession,
-				years_experience: professional?.years_experience
-					? String(professional.years_experience)
-					: "",
-				license_number: professional?.license_number || "",
-			});
+		setFormData({
+			full_name: profile.full_name || "",
+			phone: profile.phone || "",
+			country: profile.country || "",
+			city: profile.city || "",
+			bio: profile.bio || "",
+			software_tools: professional?.software_tools || [],
+			profession_type: initialProfessionType,
+			custom_profession: initialCustomProfession,
+			years_experience: professional?.years_experience
+				? String(professional.years_experience)
+				: "",
+			license_number: professional?.license_number || "",
+			survey_equipment: professional?.survey_equipment || [],
+			delivery_formats: professional?.delivery_formats || [],
+			job_types_supported: professional?.job_types_supported || [],
+			accreditations: professional?.accreditations || {},
+			service_area_label: professional?.service_area_label || "",
+		});
 
 			await loadPortfolioItems(user.id);
 			setLoading(false);
@@ -268,27 +282,32 @@ export default function ProfessionalOnboardingPage() {
 			return false;
 		}
 
-		const professionalError =
-			nextStep === "professional"
-				? (
-						await supabase
-							.from("professional_profiles")
-							.update({ onboarding_step: nextStep })
-							.eq("id", userId)
-					).error
-				: (
-						await supabase.from("professional_profiles").upsert(
-							{
-								id: userId,
-								onboarding_step: nextStep,
-								profession_type: resolvedProfessionType,
-								years_experience: years,
-								license_number: formData.license_number.trim() || null,
-								software_tools: formData.software_tools,
-							},
-							{ onConflict: "id" },
-						)
-					).error;
+	const professionalError =
+		nextStep === "professional"
+			? (
+					await supabase
+						.from("professional_profiles")
+						.update({ onboarding_step: nextStep })
+						.eq("id", userId)
+				).error
+			: (
+					await supabase.from("professional_profiles").upsert(
+						{
+							id: userId,
+							onboarding_step: nextStep,
+							profession_type: resolvedProfessionType,
+							years_experience: years,
+							license_number: formData.license_number.trim() || null,
+							software_tools: formData.software_tools,
+							survey_equipment: formData.survey_equipment,
+							delivery_formats: formData.delivery_formats,
+							job_types_supported: formData.job_types_supported,
+							accreditations: formData.accreditations,
+							service_area_label: formData.service_area_label.trim() || null,
+						},
+						{ onConflict: "id" },
+					)
+				).error;
 
 		if (professionalError) {
 			console.error("Failed to save professional details", professionalError);
@@ -627,30 +646,205 @@ export default function ProfessionalOnboardingPage() {
 										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
 									/>
 								</div>
-								<div>
-									<label
-										htmlFor="onboarding-license"
-										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-									>
-										License Number
-									</label>
-									<input
-										id="onboarding-license"
-										type="text"
-										placeholder="License number"
-										value={formData.license_number}
-										onChange={(e) =>
-											setFormData((prev) => ({
-												...prev,
-												license_number: e.target.value,
-											}))
-										}
-										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-									/>
+							<div>
+								<label
+									htmlFor="onboarding-license"
+									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+								>
+									License Number
+								</label>
+								<input
+									id="onboarding-license"
+									type="text"
+									placeholder="License number"
+									value={formData.license_number}
+									onChange={(e) =>
+										setFormData((prev) => ({
+											...prev,
+											license_number: e.target.value,
+										}))
+									}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+								/>
+							</div>
+						</div>
+
+						{/* Geospatial capabilities */}
+						<div className="space-y-4 border-t border-gray-200 dark:border-gray-800 pt-6">
+							<div>
+								<p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Survey Equipment
+								</p>
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+									The instruments you use in the field.
+								</p>
+								<div className="flex flex-wrap gap-2">
+									{surveyEquipmentOptions.map((tool) => {
+										const isSelected = formData.survey_equipment.includes(tool);
+										return (
+											<button
+												key={tool}
+												type="button"
+												onClick={() =>
+													setFormData((prev) => ({
+														...prev,
+														survey_equipment: isSelected
+															? prev.survey_equipment.filter(
+																(item) => item !== tool,
+															)
+															: [...prev.survey_equipment, tool],
+													}))
+												}
+												className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+													isSelected
+														? "bg-green-600 text-white"
+														: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+												}`}
+											>
+												{tool}
+											</button>
+										);
+									})}
 								</div>
 							</div>
-						</>
-					)}
+
+							<div>
+								<p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Delivery Formats Supported
+								</p>
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+									Deliverable file formats you can produce.
+								</p>
+								<div className="flex flex-wrap gap-2">
+									{deliveryFormatOptions.map((fmt) => {
+										const isSelected = formData.delivery_formats.includes(fmt);
+										return (
+											<button
+												key={fmt}
+												type="button"
+												onClick={() =>
+													setFormData((prev) => ({
+														...prev,
+														delivery_formats: isSelected
+															? prev.delivery_formats.filter(
+																(item) => item !== fmt,
+															)
+															: [...prev.delivery_formats, fmt],
+													}))
+												}
+												className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+													isSelected
+														? "bg-green-600 text-white"
+														: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+												}`}
+											>
+												{fmt}
+											</button>
+										);
+									})}
+								</div>
+							</div>
+
+							<div>
+								<p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Job Types You Take On
+								</p>
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+									Used to match you to relevant jobs.
+								</p>
+								<div className="flex flex-wrap gap-2">
+									{jobTypeOptions.map((jt) => {
+										const isSelected = formData.job_types_supported.includes(jt);
+										return (
+											<button
+												key={jt}
+												type="button"
+												onClick={() =>
+													setFormData((prev) => ({
+														...prev,
+														job_types_supported: isSelected
+															? prev.job_types_supported.filter(
+																(item) => item !== jt,
+															)
+															: [...prev.job_types_supported, jt],
+													}))
+												}
+												className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+													isSelected
+														? "bg-green-600 text-white"
+														: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+												}`}
+											>
+												{jt}
+											</button>
+										);
+									})}
+								</div>
+							</div>
+
+							<div>
+								<p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Accreditations
+								</p>
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+									Enter registration/membership numbers you hold. Leave blank if none.
+								</p>
+								<div className="space-y-2">
+									{accreditationKeys.map((key) => (
+										<div
+											key={key}
+											className="grid grid-cols-3 gap-3 items-center"
+										>
+											<span className="text-sm text-gray-700 dark:text-gray-300">
+												{key}
+											</span>
+											<input
+												type="text"
+												placeholder={`${key} number`}
+												value={formData.accreditations[key] || ""}
+												onChange={(e) =>
+													setFormData((prev) => ({
+														...prev,
+														accreditations: {
+															...prev.accreditations,
+															[key]: e.target.value,
+														},
+													}))
+												}
+												className="col-span-2 rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+											/>
+										</div>
+									))}
+								</div>
+							</div>
+
+							<div>
+								<label
+									htmlFor="onboarding-service-area-label"
+									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+								>
+									Service Area Label
+								</label>
+								<input
+									id="onboarding-service-area-label"
+									type="text"
+									placeholder="e.g. Lagos & SW Nigeria"
+									value={formData.service_area_label}
+									onChange={(e) =>
+										setFormData((prev) => ({
+											...prev,
+											service_area_label: e.target.value,
+										}))
+									}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+								/>
+								<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+									A draw-on-map picker for the bounding polygon comes with Tier-1 #2.
+								</p>
+							</div>
+						</div>
+					</>
+				)}
 
 					{step === 3 && (
 						<div className="space-y-6">

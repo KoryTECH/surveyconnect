@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
@@ -50,12 +50,64 @@ export async function POST(request: NextRequest) {
       }
 
       const contractId = metadata?.contractId;
+      const milestoneId = metadata?.milestoneId;
 
       if (!contractId) {
         return NextResponse.json({ received: true });
       }
 
       const supabase = await createClient();
+
+      // Milestone funding path — flip milestone to "funded" if still pending
+      // (verify route may have already done this).
+      if (milestoneId) {
+        const { data: milestone } = await supabase
+          .from("milestones")
+          .select("id, amount, status")
+          .eq("id", milestoneId)
+          .eq("contract_id", contractId)
+          .single();
+
+        if (milestone && milestone.status === "pending") {
+          const expectedMilestoneAmountKobo =
+            Math.round(Number(milestone.amount) * 1.05 * Number(metadata?.exchangeRate || 0)) * 100;
+          if (
+            expectedMilestoneAmountKobo > 0 &&
+            Number(event.data.amount || 0) === expectedMilestoneAmountKobo &&
+            event.data.currency === "NGN"
+          ) {
+            const { error: milestoneUpdateError } = await supabase
+              .from("milestones")
+              .update({
+                status: "funded",
+                funded_at: new Date().toISOString(),
+                paystack_payment_reference: reference,
+              })
+              .eq("id", milestoneId)
+              .eq("status", "pending");
+
+            if (milestoneUpdateError) {
+              console.error("Webhook milestone fund failed:", milestoneUpdateError);
+            } else {
+              try {
+                const serviceClient = createServiceClient();
+                await serviceClient.from("transactions").insert({
+                  contract_id: contractId,
+                  milestone_id: milestoneId,
+                  type: "escrow_deposit",
+                  amount: Number(milestone.amount),
+                  platform_fee: Number(milestone.amount) * 0.05,
+                  status: "completed",
+                  paystack_reference: reference,
+                });
+              } catch (err) {
+                console.error("Failed to insert escrow_deposit transaction:", err);
+              }
+            }
+          }
+        }
+        return NextResponse.json({ received: true });
+      }
 
       // Double confirm contract is active (verify route may have already done this)
       const { data: contract } = await supabase
@@ -138,6 +190,36 @@ export async function POST(request: NextRequest) {
           .update({ payment_released_at: null })
           .eq("id", contractId)
           .not("payment_released_at", "is", null);
+      }
+
+      // Milestone transfer rollback: if metadata carries a milestone_id,
+      // revert the milestone back to "approved" so the client can retry.
+      const milestoneId = metadata?.milestone_id;
+      if (milestoneId) {
+        await supabase
+          .from("milestones")
+          .update({
+            status: "approved",
+            released_at: null,
+            paystack_transfer_reference: null,
+          })
+          .eq("id", milestoneId)
+          .is("released_at", null);
+        // also fall back to parsing the reference: SC-MREL-{milestoneId}-{ts}
+        if (!milestoneId && reference && typeof reference === "string") {
+          const match = reference.match(/^SC-MREL-(.+)-(\d+)$/);
+          if (match) {
+            await supabase
+              .from("milestones")
+              .update({
+                status: "approved",
+                released_at: null,
+                paystack_transfer_reference: null,
+              })
+              .eq("id", match[1])
+              .is("released_at", null);
+          }
+        }
       }
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");

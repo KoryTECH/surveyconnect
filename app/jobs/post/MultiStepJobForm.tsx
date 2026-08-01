@@ -7,10 +7,57 @@ import BackButton from "@/components/ui/BackButton";
 import {
 	ChevronRight,
 	ChevronLeft,
-	Plus,
-	Trash2,
 	AlertCircle,
+	Pencil,
+	Upload,
+	FileText,
 } from "lucide-react";
+import {
+	PRICING_MODEL_OPTIONS,
+	PRICING_MODEL_LABELS,
+	PRICING_UNIT_BY_MODEL,
+	ACCURACY_CLASS_OPTIONS,
+	JOB_TYPE_OPTIONS,
+	computeJobBudget,
+	type PricingModel,
+} from "@/lib/constants";
+
+const SITE_SIZE_UNITS = ["hectares", "acres", "sq_meters"] as const;
+type SiteSizeUnit = (typeof SITE_SIZE_UNITS)[number];
+
+const SITE_SIZE_UNIT_LABELS: Record<SiteSizeUnit, string> = {
+	hectares: "Hectares",
+	acres: "Acres",
+	sq_meters: "Square meters",
+};
+
+const SITE_ACCESS_OPTIONS = [
+	{ value: "easy_vehicle", label: "Easy / vehicle access" },
+	{ value: "difficult_remote", label: "Difficult / remote" },
+	{ value: "requires_permission", label: "Requires permission" },
+] as const;
+
+const DURATION_OPTIONS = [
+	{ value: "1_day", label: "1 Day" },
+	{ value: "3_days", label: "3 Days" },
+	{ value: "1_week", label: "1 Week" },
+	{ value: "2_weeks", label: "2 Weeks" },
+	{ value: "1_month", label: "1 Month" },
+	{ value: "3_months", label: "3 Months" },
+	{ value: "6_months", label: "6 Months" },
+] as const;
+
+const STEPS = [
+	{ label: "Job Type & Title", short: "Type" },
+	{ label: "About the Job", short: "About" },
+	{ label: "Timeframe", short: "Time" },
+	{ label: "Payment", short: "Payment" },
+	{ label: "Documents", short: "Docs" },
+	{ label: "Review", short: "Review" },
+];
+
+const TITLE_PLACEHOLDER =
+	"e.g. Seismic refraction survey for estate boundary assessment";
 
 export default function MultiStepJobForm() {
 	const router = useRouter();
@@ -21,69 +68,114 @@ export default function MultiStepJobForm() {
 	const [error, setError] = useState("");
 	const [user, setUser] = useState<any>(null);
 	const [briefFile, setBriefFile] = useState<File | null>(null);
-	const [skillInput, setSkillInput] = useState("");
-	const [screeningQuestions, setScreeningQuestions] = useState<string[]>([]);
-	const [newQuestion, setNewQuestion] = useState("");
 
 	const [formData, setFormData] = useState({
-		// Step 1: Basics
+		// Step 1
 		title: "",
-		profession_type: "",
-		// Step 2: Details
+		survey_types: [] as string[],
+		// Step 2
 		description: "",
-		// Step 3: Requirements
-		required_skills: [] as string[],
-		experience_level: "",
-		job_type: "",
-		location: "",
-		// Step 4: Budget
+		site_location: "",
+		site_size_value: "",
+		site_size_unit: "hectares" as SiteSizeUnit,
+		site_access: "",
+		additional_notes: "",
+		// Step 3
+		estimated_duration: "",
+		// Step 4 — existing pricing logic reused verbatim
 		budget_model: "fixed" as "fixed" | "negotiable",
 		budget_fixed: "",
 		budget_min: "",
 		budget_max: "",
-		estimated_duration: "",
-		// Step 5: Screening
-		screening_questions: [] as string[],
-		// Other
+		pricing_model: "flat" as PricingModel,
+		pricing_unit_rate: "",
+		pricing_quantity: "",
+		mobilization_fee: "",
+		accuracy_class: "",
+		// Persisted-to-job row but not surfaced as a step in this rebuild:
+		job_type: "remote", // default; site location from Step 2 doesn't change work-location enum
+		// Other persisted
 		required_verification: true,
 	});
 
-	// Validation functions for each step
+	// Validate per step
 	const validateStep = (step: number): boolean => {
 		setError("");
 		switch (step) {
-			case 1:
+			case 1: {
 				if (!formData.title.trim()) {
 					setError("Job title is required");
 					return false;
 				}
-				if (!formData.profession_type) {
-					setError("Please select a profession type");
+				if (formData.survey_types.length === 0) {
+					setError("Please select at least one survey type");
 					return false;
 				}
 				return true;
-			case 2:
+			}
+			case 2: {
 				if (!formData.description.trim()) {
 					setError("Job description is required");
 					return false;
 				}
+				if (!formData.site_location.trim()) {
+					setError("Site location is required");
+					return false;
+				}
+				if (formData.site_size_value) {
+					const v = parseFloat(formData.site_size_value);
+					if (!Number.isFinite(v) || v <= 0) {
+						setError("Site size must be a positive number");
+						return false;
+					}
+				}
+				if (!formData.site_access) {
+					setError("Please select a site access option");
+					return false;
+				}
 				return true;
-			case 3:
-				if (!formData.job_type) {
-					setError("Please select a job type");
-					return false;
-				}
-				if (formData.job_type === "on_site" && !formData.location.trim()) {
-					setError("Location is required for on-site roles");
-					return false;
-				}
-				if (!formData.experience_level) {
-					setError("Please select an experience level");
+			}
+			case 3: {
+				if (!formData.estimated_duration) {
+					setError("Please select an estimated duration");
 					return false;
 				}
 				return true;
-			case 4:
-				if (formData.budget_model === "fixed") {
+			}
+			case 4: {
+				if (formData.pricing_model !== "flat") {
+					const unitRate = parseFloat(formData.pricing_unit_rate);
+					const quantity = parseFloat(formData.pricing_quantity);
+					const mobFee = parseFloat(formData.mobilization_fee) || 0;
+					if (!Number.isFinite(unitRate) || unitRate <= 0) {
+						setError("Unit rate must be greater than 0");
+						return false;
+					}
+					if (!Number.isFinite(quantity) || quantity <= 0) {
+						setError("Quantity must be greater than 0");
+						return false;
+					}
+					if (mobFee < 0) {
+						setError("Mobilization fee cannot be negative");
+						return false;
+					}
+					const computedBudget = computeJobBudget(
+						formData.pricing_model,
+						unitRate,
+						quantity,
+						mobFee,
+					);
+					if (computedBudget > 100000) {
+						setError(
+							"Total budget for per-unit jobs cannot exceed $100,000. For larger contracts, contact support@SurveyConnectHub.com",
+						);
+						return false;
+					}
+					if (computedBudget < 1) {
+						setError("Total budget must be greater than 0");
+						return false;
+					}
+				} else if (formData.budget_model === "fixed") {
 					if (!formData.budget_fixed) {
 						setError("Budget amount is required");
 						return false;
@@ -100,25 +192,44 @@ export default function MultiStepJobForm() {
 						return false;
 					}
 				} else {
-					if (formData.budget_min && formData.budget_max) {
+					if (!formData.budget_max) {
+						setError("Maximum budget is required for negotiable jobs");
+						return false;
+					}
+					const maxBudget = parseFloat(formData.budget_max);
+					if (!Number.isFinite(maxBudget) || maxBudget < 1) {
+						setError("Maximum budget must be greater than 0");
+						return false;
+					}
+					if (maxBudget > 30000) {
+						setError(
+							"Budget cannot exceed $30,000. For larger contracts, contact support@SurveyConnectHub.com",
+						);
+						return false;
+					}
+					if (formData.budget_min) {
 						const minBudget = parseFloat(formData.budget_min);
-						const maxBudget = parseFloat(formData.budget_max);
+						if (!Number.isFinite(minBudget) || minBudget < 1) {
+							setError("Minimum budget must be greater than 0");
+							return false;
+						}
 						if (minBudget >= maxBudget) {
 							setError("Maximum budget must be greater than minimum");
 							return false;
 						}
+						if (minBudget > 30000) {
+							setError(
+								"Budget cannot exceed $30,000. For larger contracts, contact support@SurveyConnectHub.com",
+							);
+							return false;
+						}
 					}
 				}
-				if (!formData.estimated_duration) {
-					setError("Please select an estimated duration");
-					return false;
-				}
 				return true;
+			}
 			case 5:
-				// Step 5 is optional
 				return true;
 			case 6:
-				// Review step - no validation needed here
 				return true;
 			default:
 				return true;
@@ -167,50 +278,16 @@ export default function MultiStepJobForm() {
 		}));
 	};
 
-	const handleSkillKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key !== "Enter") return;
-		e.preventDefault();
-		const value = skillInput.trim();
-		if (!value) return;
-		if (formData.required_skills.includes(value)) {
-			setSkillInput("");
-			return;
-		}
-		setFormData((prev) => ({
-			...prev,
-			required_skills: [...prev.required_skills, value],
-		}));
-		setSkillInput("");
-	};
-
-	const removeSkill = (skill: string) => {
-		setFormData((prev) => ({
-			...prev,
-			required_skills: prev.required_skills.filter((item) => item !== skill),
-		}));
-	};
-
-	const handleAddScreeningQuestion = () => {
-		if (!newQuestion.trim()) return;
-		if (formData.screening_questions.length >= 3) {
-			setError("Maximum 3 screening questions allowed");
-			return;
-		}
-		setFormData((prev) => ({
-			...prev,
-			screening_questions: [...prev.screening_questions, newQuestion.trim()],
-		}));
-		setNewQuestion("");
-		setError("");
-	};
-
-	const removeScreeningQuestion = (index: number) => {
-		setFormData((prev) => ({
-			...prev,
-			screening_questions: prev.screening_questions.filter(
-				(_, i) => i !== index,
-			),
-		}));
+	const toggleSurveyType = (jt: string) => {
+		setFormData((prev) => {
+			const isSelected = prev.survey_types.includes(jt);
+			return {
+				...prev,
+				survey_types: isSelected
+					? prev.survey_types.filter((item) => item !== jt)
+					: [...prev.survey_types, jt],
+			};
+		});
 	};
 
 	const handleBriefFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -235,18 +312,20 @@ export default function MultiStepJobForm() {
 		setError("");
 	};
 
+	const goToStep = (step: number) => {
+		setCurrentStep(step);
+		setError("");
+		window.scrollTo(0, 0);
+	};
+
 	const handleNext = () => {
 		if (validateStep(currentStep)) {
-			setCurrentStep(currentStep + 1);
-			setError("");
-			window.scrollTo(0, 0);
+			goToStep(currentStep + 1);
 		}
 	};
 
 	const handlePrev = () => {
-		setCurrentStep(currentStep - 1);
-		setError("");
-		window.scrollTo(0, 0);
+		goToStep(currentStep - 1);
 	};
 
 	const handleSubmit = async () => {
@@ -270,19 +349,56 @@ export default function MultiStepJobForm() {
 				briefAttachmentUrl = briefPath;
 			}
 
-			const budgetAmount =
-				formData.budget_model === "fixed"
+			const isPerUnit = formData.pricing_model !== "flat";
+			const unitRate = parseFloat(formData.pricing_unit_rate) || 0;
+			const quantity = parseFloat(formData.pricing_quantity) || 0;
+			const mobilizationFee = parseFloat(formData.mobilization_fee) || 0;
+
+			const budgetAmount = isPerUnit
+				? computeJobBudget(formData.pricing_model, unitRate, quantity, mobilizationFee)
+				: formData.budget_model === "fixed"
 					? parseFloat(formData.budget_fixed)
-					: parseFloat(formData.budget_max || formData.budget_min || "0");
+					: parseFloat(formData.budget_max) ||
+						parseFloat(formData.budget_min) ||
+						0;
+
+			if (!Number.isFinite(budgetAmount) || budgetAmount <= 0) {
+				setError("Please enter a valid budget greater than 0.");
+				setLoading(false);
+				return;
+			}
+			if (isPerUnit && budgetAmount > 100000) {
+				setError(
+					"Total budget for per-unit jobs cannot exceed $100,000. For larger contracts, contact support@SurveyConnectHub.com",
+				);
+				setLoading(false);
+				return;
+			}
+			if (!isPerUnit && budgetAmount > 30000) {
+				setError(
+					"Budget cannot exceed $30,000. For larger contracts, contact support@SurveyConnectHub.com",
+				);
+				setLoading(false);
+				return;
+			}
+
+			const siteSizeValue = formData.site_size_value
+				? parseFloat(formData.site_size_value)
+				: null;
+
+			// profession_type column is a non-null enum (PROFESSION_OPTIONS).
+			// Phase 2 jobs no longer ask for a profession role; default to "other"
+			// since the new survey-types multi-select is the primary categorization.
+			const professionType = "other";
 
 			const { error: jobError } = await supabase.from("jobs").insert({
 				client_id: user.id,
 				title: formData.title,
 				description: formData.description,
-				profession_type: formData.profession_type,
+				profession_type: professionType,
 				job_type: formData.job_type,
-				location: formData.job_type === "on_site" ? formData.location : null,
-				required_skills: formData.required_skills,
+				location: formData.site_location || null,
+				required_skills: [],
 				estimated_duration: formData.estimated_duration || null,
 				brief_attachment_url: briefAttachmentUrl,
 				budget: budgetAmount,
@@ -300,13 +416,25 @@ export default function MultiStepJobForm() {
 						: null,
 				budget_model: formData.budget_model,
 				budget_type: "fixed",
-				experience_level: formData.experience_level,
-				screening_questions:
-					formData.screening_questions.length > 0
-						? formData.screening_questions
-						: null,
+				pricing_model: formData.pricing_model,
+				pricing_unit_rate: isPerUnit ? unitRate : null,
+				pricing_quantity: isPerUnit ? quantity : null,
+				pricing_unit: isPerUnit
+					? PRICING_UNIT_BY_MODEL[formData.pricing_model]
+					: null,
+				mobilization_fee: isPerUnit ? mobilizationFee : 0,
+				accuracy_class: formData.accuracy_class || null,
+				screening_questions: null,
 				required_verification: formData.required_verification,
 				status: "open",
+				// Phase 2 fields
+				survey_types:
+					formData.survey_types.length > 0 ? formData.survey_types : null,
+				site_location: formData.site_location || null,
+				site_size_value: siteSizeValue,
+				site_size_unit: formData.site_size_value ? formData.site_size_unit : null,
+				site_access: formData.site_access || null,
+				additional_notes: formData.additional_notes || null,
 			});
 
 			if (jobError) throw jobError;
@@ -327,14 +455,38 @@ export default function MultiStepJobForm() {
 		);
 	}
 
-	const steps = [
-		"Basics",
-		"Details",
-		"Requirements",
-		"Budget",
-		"Screening",
-		"Review",
-	];
+	// Renders a section card used in the review step
+	const renderReviewSection = (
+		title: string,
+		step: number,
+		children: React.ReactNode,
+	) => (
+		<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 space-y-3">
+			<div className="flex items-center justify-between">
+				<h3 className="font-semibold text-gray-900 dark:text-white">
+					{title}
+				</h3>
+				<button
+					type="button"
+					onClick={() => goToStep(step)}
+					className="text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400"
+					aria-label={`Edit ${title}`}
+				>
+					<Pencil className="w-4 h-4" />
+				</button>
+			</div>
+			<div className="space-y-2 text-sm">{children}</div>
+		</div>
+	);
+
+	const renderReviewRow = (label: string, value: React.ReactNode) => (
+		<div className="flex justify-between gap-4">
+			<span className="text-gray-600 dark:text-gray-400 shrink-0">{label}:</span>
+			<span className="text-gray-900 dark:text-white font-medium text-right">
+				{value || <span className="italic text-gray-400">—</span>}
+			</span>
+		</div>
+	);
 
 	return (
 		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-12 px-4 transition-colors duration-300">
@@ -343,20 +495,15 @@ export default function MultiStepJobForm() {
 					<h1 className="text-3xl font-bold text-gray-900 dark:text-white">
 						Survey<span className="text-green-600">ConnectHub</span>
 					</h1>
-					<p className="text-gray-500 dark:text-gray-400 mt-2">
-						Post a New Job
-					</p>
+					<p className="text-gray-500 dark:text-gray-400 mt-2">Post a New Job</p>
 				</div>
 
 				<div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-8 border border-transparent dark:border-gray-800">
 					{/* Progress Indicator */}
 					<div className="mb-8">
 						<div className="flex items-center justify-between mb-2">
-							{steps.map((step, index) => (
-								<div
-									key={index}
-									className="flex-1"
-								>
+							{STEPS.map((step, index) => (
+								<div key={index} className="flex-1">
 									<div
 										className={`h-2 rounded-full transition-colors ${
 											index + 1 <= currentStep
@@ -364,7 +511,7 @@ export default function MultiStepJobForm() {
 												: "bg-gray-300 dark:bg-gray-700"
 										}`}
 									/>
-									{index < steps.length - 1 && (
+									{index < STEPS.length - 1 && (
 										<div
 											className={`h-2 -mt-2 rounded-full transition-colors ${
 												index + 1 < currentStep
@@ -378,10 +525,10 @@ export default function MultiStepJobForm() {
 						</div>
 						<div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400">
 							<span>
-								Step {currentStep} of {steps.length}
+								Step {currentStep} of {STEPS.length}
 							</span>
 							<span className="font-medium text-gray-900 dark:text-white">
-								{steps[currentStep - 1]}
+								{STEPS[currentStep - 1].label}
 							</span>
 						</div>
 					</div>
@@ -394,7 +541,7 @@ export default function MultiStepJobForm() {
 						</div>
 					)}
 
-					{/* Step 1: Basics */}
+					{/* STEP 1 — Job Type & Title */}
 					{currentStep === 1 && (
 						<form className="space-y-6">
 							<div>
@@ -406,320 +553,165 @@ export default function MultiStepJobForm() {
 									name="title"
 									value={formData.title}
 									onChange={handleChange}
-									placeholder="e.g. Land Survey for 50 Hectare Farm in Ogun State"
+									placeholder={TITLE_PLACEHOLDER}
 									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
 								/>
+							<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+								Be specific. Examples: &ldquo;Boundary survey for 50-hectare
+								estate&rdquo;, &ldquo;Topographic survey for highway
+								corridor&rdquo;.
+							</p>
 							</div>
 
 							<div>
 								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Profession Needed <span className="text-red-500">*</span>
+									Survey Type(s) Needed <span className="text-red-500">*</span>
 								</label>
-								<select
-									name="profession_type"
-									value={formData.profession_type}
-									onChange={handleChange}
-									aria-label="Select profession type"
-									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
-								>
-									<option value="">Select profession type</option>
-									<option value="land_surveyor">Land Surveyor</option>
-									<option value="gis_analyst">GIS Analyst</option>
-									<option value="drone_pilot">Drone/UAV Pilot</option>
-									<option value="cartographer">Cartographer</option>
-									<option value="photogrammetrist">Photogrammetrist</option>
-									<option value="lidar_specialist">LiDAR Specialist</option>
-									<option value="remote_sensing_analyst">
-										Remote Sensing Analyst
-									</option>
-									<option value="urban_planner">Urban Planner</option>
-									<option value="spatial_data_scientist">
-										Spatial Data Scientist
-									</option>
-									<option value="hydrographic_surveyor">
-										Hydrographic Surveyor
-									</option>
-									<option value="mining_surveyor">Mining Surveyor</option>
-									<option value="construction_surveyor">
-										Construction Surveyor
-									</option>
-									<option value="environmental_analyst">
-										Environmental Analyst
-									</option>
-									<option value="bim_specialist">BIM Specialist</option>
-									<option value="other">Other</option>
-								</select>
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+									Select all that apply. Used to match you with professionals
+									who take on these job types.
+								</p>
+								<div className="flex flex-wrap gap-2">
+									{JOB_TYPE_OPTIONS.map((jt) => {
+										const isSelected = formData.survey_types.includes(jt);
+										return (
+											<button
+												key={jt}
+												type="button"
+												onClick={() => toggleSurveyType(jt)}
+												className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+													isSelected
+														? "bg-green-600 text-white"
+														: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+												}`}
+											>
+												{jt}
+											</button>
+										);
+									})}
+								</div>
 							</div>
 						</form>
 					)}
 
-					{/* Step 2: Details */}
+					{/* STEP 2 — About the Job */}
 					{currentStep === 2 && (
 						<form className="space-y-6">
 							<div>
 								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Job Description <span className="text-red-500">*</span>
+									Description <span className="text-red-500">*</span>
 								</label>
 								<textarea
 									name="description"
 									value={formData.description}
 									onChange={handleChange}
 									rows={8}
-									placeholder="Describe the project in detail. Include scope, deliverables, timeline expectations, and any special requirements..."
+									placeholder="Describe the project in detail. Include scope, deliverables, and any special requirements..."
 									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 resize-none"
 								/>
 							</div>
 
 							<div>
 								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Job Brief Attachment
+									Site Location <span className="text-red-500">*</span>
 								</label>
-								<label className="block w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-center cursor-pointer hover:border-green-500 transition-colors">
-									<input
-										type="file"
-										accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-										onChange={handleBriefFileChange}
-										className="hidden"
-									/>
-									<div className="text-gray-600 dark:text-gray-400 text-sm">
-										{briefFile ? (
-											<span className="text-green-600 dark:text-green-400">
-												✓ {briefFile.name}
-											</span>
-										) : (
-											<>
-												<span className="text-green-600 dark:text-green-400">
-													Click to upload
-												</span>
-												<span className="text-gray-500 dark:text-gray-500">
-													{" "}
-													or drag and drop
-												</span>
-												<p className="text-xs text-gray-400 mt-1">
-													PDF or DOCX only
-												</p>
-											</>
-										)}
+								<input
+									type="text"
+									name="site_location"
+									value={formData.site_location}
+									onChange={handleChange}
+									placeholder="e.g. Lekki Phase 2 Estate, Lagos"
+									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
+								/>
+								<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+									Address or general area. Not shown publicly to professionals
+									outside the job page.
+								</p>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Approximate Site Size
+								</label>
+								<div className="grid grid-cols-3 gap-3">
+									<div className="col-span-2">
+										<input
+											type="number"
+											name="site_size_value"
+											value={formData.site_size_value}
+											onChange={handleChange}
+											placeholder="0"
+											min="0"
+											step="0.01"
+											className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
+										/>
 									</div>
+									<select
+										name="site_size_unit"
+										value={formData.site_size_unit}
+										onChange={handleChange}
+										aria-label="Site size unit"
+										className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
+									>
+										{SITE_SIZE_UNITS.map((unit) => (
+											<option key={unit} value={unit}>
+												{SITE_SIZE_UNIT_LABELS[unit]}
+											</option>
+										))}
+									</select>
+								</div>
+								<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+									Optional, but helps professionals estimate effort.
+								</p>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Site Access <span className="text-red-500">*</span>
 								</label>
+								<select
+									name="site_access"
+									value={formData.site_access}
+									onChange={handleChange}
+									aria-label="Select site access"
+									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
+								>
+									<option value="">Select site access</option>
+									{SITE_ACCESS_OPTIONS.map((opt) => (
+										<option key={opt.value} value={opt.value}>
+											{opt.label}
+										</option>
+									))}
+								</select>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Additional Notes
+								</label>
+								<textarea
+									name="additional_notes"
+									value={formData.additional_notes}
+									onChange={handleChange}
+									rows={4}
+									placeholder="Terrain type, coordinate system, existing control points, specific equipment expectations, etc."
+									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 resize-none"
+								/>
+								<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+									Optional. Anything else the professional should know before
+									quoting.
+								</p>
 							</div>
 						</form>
 					)}
 
-					{/* Step 3: Requirements */}
+					{/* STEP 3 — Timeframe */}
 					{currentStep === 3 && (
 						<form className="space-y-6">
 							<div>
 								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Job Type <span className="text-red-500">*</span>
-								</label>
-								<select
-									name="job_type"
-									value={formData.job_type}
-									onChange={handleChange}
-									aria-label="Select job type"
-									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
-								>
-									<option value="">Select job type</option>
-									<option value="remote">Remote</option>
-									<option value="on_site">On-site</option>
-									<option value="hybrid">Hybrid</option>
-								</select>
-							</div>
-
-							{formData.job_type === "on_site" && (
-								<div>
-									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-										Location <span className="text-red-500">*</span>
-									</label>
-									<input
-										type="text"
-										name="location"
-										value={formData.location}
-										onChange={handleChange}
-										placeholder="Enter job location"
-										className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
-									/>
-								</div>
-							)}
-
-							<div>
-								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Experience Level <span className="text-red-500">*</span>
-								</label>
-								<select
-									name="experience_level"
-									value={formData.experience_level}
-									onChange={handleChange}
-									aria-label="Select experience level"
-									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
-								>
-									<option value="">Select experience level</option>
-									<option value="entry_level">Entry Level</option>
-									<option value="intermediate">Intermediate</option>
-									<option value="expert">Expert</option>
-								</select>
-							</div>
-
-							<div>
-								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Required Skills
-								</label>
-								<div className="flex flex-wrap gap-2 mb-2">
-									{formData.required_skills.map((skill) => (
-										<span
-											key={skill}
-											className="inline-flex items-center gap-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-1 text-sm"
-										>
-											{skill}
-											<button
-												type="button"
-												onClick={() => removeSkill(skill)}
-												className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-												aria-label={`Remove skill ${skill}`}
-											>
-												×
-											</button>
-										</span>
-									))}
-								</div>
-								<input
-									type="text"
-									value={skillInput}
-									onChange={(e) => setSkillInput(e.target.value)}
-									onKeyDown={handleSkillKeyDown}
-									placeholder="Type a skill and press Enter"
-									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
-								/>
-							</div>
-						</form>
-					)}
-
-					{/* Step 4: Budget */}
-					{currentStep === 4 && (
-						<form className="space-y-6">
-							<div>
-								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-									Budget Type <span className="text-red-500">*</span>
-								</label>
-								<div className="grid grid-cols-2 gap-3">
-									<button
-										type="button"
-										onClick={() =>
-											setFormData((prev) => ({
-												...prev,
-												budget_model: "fixed",
-											}))
-										}
-										className={`p-4 rounded-xl border-2 text-left transition-all ${
-											formData.budget_model === "fixed"
-												? "border-green-600 bg-green-50 dark:bg-green-900/20"
-												: "border-gray-200 dark:border-gray-700 hover:border-gray-300"
-										}`}
-									>
-										<p className="font-semibold text-gray-900 dark:text-white text-sm">
-											Fixed Price
-										</p>
-										<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-											You set the exact price.
-										</p>
-									</button>
-									<button
-										type="button"
-										onClick={() =>
-											setFormData((prev) => ({
-												...prev,
-												budget_model: "negotiable",
-											}))
-										}
-										className={`p-4 rounded-xl border-2 text-left transition-all ${
-											formData.budget_model === "negotiable"
-												? "border-green-600 bg-green-50 dark:bg-green-900/20"
-												: "border-gray-200 dark:border-gray-700 hover:border-gray-300"
-										}`}
-									>
-										<p className="font-semibold text-gray-900 dark:text-white text-sm">
-											Negotiable
-										</p>
-										<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-											Set a budget range.
-										</p>
-									</button>
-								</div>
-							</div>
-
-							{formData.budget_model === "fixed" && (
-								<div>
-									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-										Fixed Amount (USD) <span className="text-red-500">*</span>
-									</label>
-									<div className="relative">
-										<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium">
-											$
-										</span>
-										<input
-											type="number"
-											name="budget_fixed"
-											value={formData.budget_fixed}
-											onChange={handleChange}
-											placeholder="e.g. 500"
-											min="1"
-											max="30000"
-											className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400"
-										/>
-									</div>
-									<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-										Maximum $30,000.
-									</p>
-								</div>
-							)}
-
-							{formData.budget_model === "negotiable" && (
-								<div className="grid grid-cols-2 gap-4">
-									<div>
-										<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-											Minimum Budget (USD)
-										</label>
-										<div className="relative">
-											<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
-												$
-											</span>
-											<input
-												type="number"
-												name="budget_min"
-												value={formData.budget_min}
-												onChange={handleChange}
-												placeholder="e.g. 300"
-												min="1"
-												className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400"
-											/>
-										</div>
-									</div>
-									<div>
-										<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-											Maximum Budget (USD)
-										</label>
-										<div className="relative">
-											<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
-												$
-											</span>
-											<input
-												type="number"
-												name="budget_max"
-												value={formData.budget_max}
-												onChange={handleChange}
-												placeholder="e.g. 600"
-												min="1"
-												className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400"
-											/>
-										</div>
-									</div>
-								</div>
-							)}
-
-							<div>
-								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Estimated Duration <span className="text-red-500">*</span>
+									Estimated Delivery / Project Duration{" "}
+									<span className="text-red-500">*</span>
 								</label>
 								<select
 									name="estimated_duration"
@@ -729,225 +721,424 @@ export default function MultiStepJobForm() {
 									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
 								>
 									<option value="">Select duration</option>
-									<option value="1_day">1 Day</option>
-									<option value="3_days">3 Days</option>
-									<option value="1_week">1 Week</option>
-									<option value="2_weeks">2 Weeks</option>
-									<option value="1_month">1 Month</option>
-									<option value="3_months">3 Months</option>
-									<option value="6_months">6 Months</option>
+									{DURATION_OPTIONS.map((opt) => (
+										<option key={opt.value} value={opt.value}>
+											{opt.label}
+										</option>
+									))}
+								</select>
+								<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+									How long you expect the project to take once started.
+								</p>
+							</div>
+						</form>
+					)}
+
+					{/* STEP 4 — Payment (existing pricing logic reused verbatim) */}
+					{currentStep === 4 && (
+						<form className="space-y-6">
+							<div>
+								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+									Pricing Model <span className="text-red-500">*</span>
+								</label>
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+									Geospatial work is often priced per area, distance, or point.
+									Pick the model that matches the scope.
+								</p>
+								<select
+									name="pricing_model"
+									value={formData.pricing_model}
+									onChange={handleChange}
+									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
+								>
+									{PRICING_MODEL_OPTIONS.map((model) => (
+										<option key={model} value={model}>
+											{PRICING_MODEL_LABELS[model]}
+										</option>
+									))}
+								</select>
+							</div>
+
+							{formData.pricing_model !== "flat" && (
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800">
+									<div>
+										<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+											Unit Rate (USD /{" "}
+											{PRICING_UNIT_BY_MODEL[formData.pricing_model]}){" "}
+											<span className="text-red-500">*</span>
+										</label>
+										<div className="relative">
+											<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+												$
+											</span>
+											<input
+												type="number"
+												name="pricing_unit_rate"
+												value={formData.pricing_unit_rate}
+												onChange={handleChange}
+												placeholder="e.g. 25"
+												min="0.01"
+												step="0.01"
+												className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
+											/>
+										</div>
+									</div>
+									<div>
+										<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+											Quantity ({PRICING_UNIT_BY_MODEL[formData.pricing_model]}s){" "}
+											<span className="text-red-500">*</span>
+										</label>
+										<input
+											type="number"
+											name="pricing_quantity"
+											value={formData.pricing_quantity}
+											onChange={handleChange}
+											placeholder="e.g. 50"
+											min="0.01"
+											step="0.01"
+											className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
+										/>
+									</div>
+									<div>
+										<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+											Mobilization Fee (USD)
+										</label>
+										<div className="relative">
+											<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+												$
+											</span>
+											<input
+												type="number"
+												name="mobilization_fee"
+												value={formData.mobilization_fee}
+												onChange={handleChange}
+												placeholder="0"
+												min="0"
+												step="0.01"
+												className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
+											/>
+										</div>
+									</div>
+									<div className="md:col-span-3 text-sm text-emerald-700 dark:text-emerald-300">
+										Total budget:{" "}
+										<span className="font-semibold">
+											$
+											{computeJobBudget(
+												formData.pricing_model,
+												parseFloat(formData.pricing_unit_rate) || 0,
+												parseFloat(formData.pricing_quantity) || 0,
+												parseFloat(formData.mobilization_fee) || 0,
+											).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+										</span>{" "}
+										(max $100,000 for per-unit jobs)
+									</div>
+								</div>
+							)}
+
+							{formData.pricing_model === "flat" && (
+								<div>
+									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+										Budget Type <span className="text-red-500">*</span>
+									</label>
+									<div className="grid grid-cols-2 gap-3">
+										<button
+											type="button"
+											onClick={() =>
+												setFormData((prev) => ({
+													...prev,
+													budget_model: "fixed",
+												}))
+											}
+											className={`p-4 rounded-xl border-2 text-left transition-all ${
+												formData.budget_model === "fixed"
+													? "border-green-600 bg-green-50 dark:bg-green-900/20"
+													: "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+											}`}
+										>
+											<p className="font-semibold text-gray-900 dark:text-white text-sm">
+												Fixed Price
+											</p>
+											<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+												You set the exact price.
+											</p>
+										</button>
+										<button
+											type="button"
+											onClick={() =>
+												setFormData((prev) => ({
+													...prev,
+													budget_model: "negotiable",
+												}))
+											}
+											className={`p-4 rounded-xl border-2 text-left transition-all ${
+												formData.budget_model === "negotiable"
+													? "border-green-600 bg-green-50 dark:bg-green-900/20"
+													: "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+											}`}
+										>
+											<p className="font-semibold text-gray-900 dark:text-white text-sm">
+												Negotiable
+											</p>
+											<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+												Set a budget range.
+											</p>
+										</button>
+									</div>
+								</div>
+							)}
+
+							{formData.pricing_model === "flat" &&
+								formData.budget_model === "fixed" && (
+									<div>
+										<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+											Fixed Amount (USD) <span className="text-red-500">*</span>
+										</label>
+										<div className="relative">
+											<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium">
+												$
+											</span>
+											<input
+												type="number"
+												name="budget_fixed"
+												value={formData.budget_fixed}
+												onChange={handleChange}
+												placeholder="e.g. 500"
+												min="1"
+												max="30000"
+												className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400"
+											/>
+										</div>
+										<p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+											Maximum $30,000.
+										</p>
+									</div>
+								)}
+
+							{formData.pricing_model === "flat" &&
+								formData.budget_model === "negotiable" && (
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+												Minimum Budget (USD)
+											</label>
+											<div className="relative">
+												<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+													$
+												</span>
+												<input
+													type="number"
+													name="budget_min"
+													value={formData.budget_min}
+													onChange={handleChange}
+													placeholder="e.g. 300"
+													min="1"
+													className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400"
+												/>
+											</div>
+										</div>
+										<div>
+											<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+												Maximum Budget (USD){" "}
+												<span className="text-red-500">*</span>
+											</label>
+											<div className="relative">
+												<span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+													$
+												</span>
+												<input
+													type="number"
+													name="budget_max"
+													value={formData.budget_max}
+													onChange={handleChange}
+													placeholder="e.g. 600"
+													min="1"
+													className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400"
+												/>
+											</div>
+										</div>
+									</div>
+								)}
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									Accuracy Class (optional)
+								</label>
+								<select
+									name="accuracy_class"
+									value={formData.accuracy_class}
+									onChange={handleChange}
+									className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800"
+								>
+									<option value="">Not specified</option>
+									{ACCURACY_CLASS_OPTIONS.map((cls) => (
+										<option key={cls} value={cls}>
+											{cls}
+										</option>
+									))}
 								</select>
 							</div>
 						</form>
 					)}
 
-					{/* Step 5: Screening Questions */}
+					{/* STEP 5 — Documents */}
 					{currentStep === 5 && (
 						<form className="space-y-6">
 							<div>
 								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Screening Questions (Optional)
+									Job Brief / Site Document{" "}
+									<span className="text-gray-400 text-xs">(optional)</span>
 								</label>
-								<p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-									Add up to 3 questions that professionals must answer when
-									applying.
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+									Upload a single PDF or DOCX with the scope of work, site
+									photos, or reference materials. Professionals will be able to
+									securely download this when reviewing your job.
 								</p>
-
-								<div className="space-y-4 mb-4">
-									{formData.screening_questions.map((question, index) => (
-										<div
-											key={index}
-											className="flex gap-3 items-start bg-gray-50 dark:bg-gray-800 p-4 rounded-xl"
-										>
-											<span className="text-gray-500 dark:text-gray-400 font-medium text-sm">
-												{index + 1}.
+								<label className="block w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-center cursor-pointer hover:border-green-500 transition-colors">
+									<input
+										type="file"
+										accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+										onChange={handleBriefFileChange}
+										className="hidden"
+									/>
+									<div className="text-gray-600 dark:text-gray-400 text-sm">
+										{briefFile ? (
+											<span className="text-green-600 dark:text-green-400 inline-flex items-center gap-2">
+												<FileText className="w-4 h-4" /> ✓ {briefFile.name}
 											</span>
-											<span className="flex-1 text-gray-700 dark:text-gray-300 text-sm pt-0.5">
-												{question}
-											</span>
-											<button
-												type="button"
-												onClick={() => removeScreeningQuestion(index)}
-												className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
-												aria-label={`Remove screening question ${index + 1}`}
-											>
-												<Trash2 className="w-4 h-4" />
-											</button>
-										</div>
-									))}
-								</div>
-
-								{formData.screening_questions.length < 3 && (
-									<div className="flex gap-2">
-										<input
-											type="text"
-											value={newQuestion}
-											onChange={(e) => setNewQuestion(e.target.value)}
-											onKeyDown={(e) => {
-												if (e.key === "Enter") {
-													e.preventDefault();
-													handleAddScreeningQuestion();
-												}
-											}}
-											placeholder="Enter a screening question"
-											className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-sm"
-										/>
-										<button
-											type="button"
-											onClick={handleAddScreeningQuestion}
-											className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
-											aria-label="Add screening question"
-										>
-											<Plus className="w-4 h-4" />
-										</button>
+										) : (
+											<>
+												<span className="text-green-600 dark:text-green-400 inline-flex items-center gap-1">
+													<Upload className="w-4 h-4" /> Click to upload
+												</span>
+												<span className="text-gray-500 dark:text-gray-500">
+													{" "}
+													or drag and drop
+												</span>
+												<p className="text-xs text-gray-400 mt-1">
+													PDF or DOCX only · Max 5MB
+												</p>
+											</>
+										)}
 									</div>
-								)}
+								</label>
+								<p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+									Once posted, this attachment is locked — additional documents
+									cannot be added later in this release.
+								</p>
 							</div>
 						</form>
 					)}
 
-					{/* Step 6: Review */}
+					{/* STEP 6 — Review */}
 					{currentStep === 6 && (
-						<div className="space-y-6">
-							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 space-y-4">
-								<h3 className="font-semibold text-gray-900 dark:text-white">
-									Job Basics
-								</h3>
-								<div className="space-y-2 text-sm">
-									<div className="flex justify-between">
-										<span className="text-gray-600 dark:text-gray-400">
-											Title:
-										</span>
-										<span className="text-gray-900 dark:text-white font-medium">
-											{formData.title}
-										</span>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-gray-600 dark:text-gray-400">
-											Profession:
-										</span>
-										<span className="text-gray-900 dark:text-white font-medium">
-											{formData.profession_type}
-										</span>
-									</div>
-								</div>
-							</div>
-
-							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 space-y-4">
-								<h3 className="font-semibold text-gray-900 dark:text-white">
-									Job Details
-								</h3>
-								<div className="text-sm text-gray-700 dark:text-gray-300">
-									<p className="line-clamp-3">{formData.description}</p>
-								</div>
-								{briefFile && (
-									<div className="text-sm">
-										<span className="text-gray-600 dark:text-gray-400">
-											Brief:
-										</span>
-										<span className="text-green-600 dark:text-green-400 ml-2">
-											✓ {briefFile.name}
-										</span>
-									</div>
-								)}
-							</div>
-
-							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 space-y-4">
-								<h3 className="font-semibold text-gray-900 dark:text-white">
-									Requirements
-								</h3>
-								<div className="space-y-2 text-sm">
-									<div className="flex justify-between">
-										<span className="text-gray-600 dark:text-gray-400">
-											Job Type:
-										</span>
-										<span className="text-gray-900 dark:text-white font-medium">
-											{formData.job_type}
-										</span>
-									</div>
-									{formData.location && (
-										<div className="flex justify-between">
-											<span className="text-gray-600 dark:text-gray-400">
-												Location:
-											</span>
-											<span className="text-gray-900 dark:text-white font-medium">
-												{formData.location}
-											</span>
-										</div>
-									)}
-									<div className="flex justify-between">
-										<span className="text-gray-600 dark:text-gray-400">
-											Experience:
-										</span>
-										<span className="text-gray-900 dark:text-white font-medium">
-											{formData.experience_level}
-										</span>
-									</div>
-								</div>
-								{formData.required_skills.length > 0 && (
+						<div className="space-y-4">
+							{renderReviewSection("Job Type & Title", 1,
+								<>
+									{renderReviewRow("Title", formData.title)}
 									<div>
-										<p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
-											Skills:
-										</p>
-										<div className="flex flex-wrap gap-2">
-											{formData.required_skills.map((skill) => (
-												<span
-													key={skill}
-													className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs px-2 py-1 rounded"
-												>
-													{skill}
-												</span>
-											))}
+										<span className="text-gray-600 dark:text-gray-400">
+											Survey type(s):
+										</span>
+										<div className="flex flex-wrap gap-1.5 mt-2">
+											{formData.survey_types.length > 0 ? (
+												formData.survey_types.map((jt) => (
+													<span
+														key={jt}
+														className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs px-2 py-1 rounded"
+													>
+														{jt}
+													</span>
+												))
+											) : (
+												<span className="italic text-gray-400">—</span>
+											)}
 										</div>
 									</div>
-								)}
-							</div>
+								</>
+							)}
 
-							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 space-y-4">
-								<h3 className="font-semibold text-gray-900 dark:text-white">
-									Budget & Timeline
-								</h3>
-								<div className="space-y-2 text-sm">
-									<div className="flex justify-between">
-										<span className="text-gray-600 dark:text-gray-400">
-											Budget Type:
+							{renderReviewSection("About the Job", 2,
+								<>
+									<div>
+										<span className="text-gray-600 dark:text-gray-400 block mb-1">
+											Description:
 										</span>
-										<span className="text-gray-900 dark:text-white font-medium">
-											{formData.budget_model === "fixed"
+										<p className="text-gray-900 dark:text-white line-clamp-4 whitespace-pre-wrap">
+											{formData.description}
+										</p>
+									</div>
+									{renderReviewRow(
+										"Site location",
+										formData.site_location,
+									)}
+									{renderReviewRow(
+										"Site size",
+										formData.site_size_value
+											? `${formData.site_size_value} ${SITE_SIZE_UNIT_LABELS[formData.site_size_unit]}`
+											: null,
+									)}
+									{renderReviewRow(
+										"Site access",
+										SITE_ACCESS_OPTIONS.find(
+											(opt) => opt.value === formData.site_access,
+										)?.label,
+									)}
+									{renderReviewRow(
+										"Additional notes",
+										formData.additional_notes || null,
+									)}
+								</>
+							)}
+
+							{renderReviewSection("Timeframe", 3,
+								<>
+									{renderReviewRow(
+										"Estimated duration",
+										DURATION_OPTIONS.find(
+											(opt) => opt.value === formData.estimated_duration,
+										)?.label,
+									)}
+								</>
+							)}
+
+							{renderReviewSection("Payment", 4,
+								<>
+									{renderReviewRow(
+										"Pricing model",
+										PRICING_MODEL_LABELS[formData.pricing_model],
+									)}
+									{renderReviewRow(
+										"Budget",
+										formData.pricing_model !== "flat"
+											? `$${(parseFloat(formData.pricing_unit_rate) || 0).toFixed(2)} × ${formData.pricing_quantity || 0} ${PRICING_UNIT_BY_MODEL[formData.pricing_model]}${(parseFloat(formData.pricing_quantity) || 0) === 1 ? "" : "s"}${formData.mobilization_fee ? " + $" + (parseFloat(formData.mobilization_fee) || 0).toFixed(2) + " mob" : ""} = $${computeJobBudget(
+												formData.pricing_model,
+												parseFloat(formData.pricing_unit_rate) || 0,
+												parseFloat(formData.pricing_quantity) || 0,
+												parseFloat(formData.mobilization_fee) || 0,
+											).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+											: formData.budget_model === "fixed"
 												? `Fixed: $${formData.budget_fixed}`
-												: `Negotiable: $${formData.budget_min} - $${formData.budget_max}`}
-										</span>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-gray-600 dark:text-gray-400">
-											Duration:
-										</span>
-										<span className="text-gray-900 dark:text-white font-medium">
-											{formData.estimated_duration}
-										</span>
-									</div>
-								</div>
-							</div>
+												: `Negotiable: $${formData.budget_min || 0} - $${formData.budget_max || 0}`,
+									)}
+									{renderReviewRow(
+										"Accuracy class",
+										formData.accuracy_class || null,
+									)}
+								</>
+							)}
 
-							{formData.screening_questions.length > 0 && (
-								<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 space-y-4">
-									<h3 className="font-semibold text-gray-900 dark:text-white">
-										Screening Questions
-									</h3>
-									<div className="space-y-2 text-sm">
-										{formData.screening_questions.map((question, index) => (
-											<div
-												key={index}
-												className="text-gray-700 dark:text-gray-300"
-											>
-												<span className="text-gray-600 dark:text-gray-400">
-													{index + 1}.
-												</span>
-												<span className="ml-2">{question}</span>
-											</div>
-										))}
-									</div>
-								</div>
+							{renderReviewSection("Documents", 5,
+								<>
+									{briefFile ? (
+										<span className="text-green-600 dark:text-green-400 inline-flex items-center gap-2 text-sm">
+											<FileText className="w-4 h-4" /> ✓ {briefFile.name}
+										</span>
+									) : (
+										<span className="italic text-gray-400 text-sm">
+											No document attached
+										</span>
+									)}
+								</>
 							)}
 						</div>
 					)}
@@ -964,7 +1155,7 @@ export default function MultiStepJobForm() {
 							</button>
 						)}
 
-						{currentStep < 6 ? (
+						{currentStep < STEPS.length ? (
 							<button
 								onClick={handleNext}
 								className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors"

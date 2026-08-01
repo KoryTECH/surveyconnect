@@ -2,19 +2,22 @@ import Link from "next/link";
 
 export default function Footer() {
 	return (
-		<footer className="border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur">
-			<div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-6 text-sm text-gray-600 dark:text-gray-300">
-				<p>© 2026 SurveyConnectHub</p>
+		<footer className="border-t border-ink-200 bg-white">
+			<div className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-4 px-6 py-6 text-sm text-ink-500">
+				<div>
+					<p className="font-semibold text-ink-900 mb-1">SurveyConnectHub</p>
+					<p>&copy; {new Date().getFullYear()} SurveyConnectHub Geospatial Marketplace</p>
+				</div>
 				<div className="flex items-center gap-6">
 					<Link
 						href="/terms"
-						className="hover:text-gray-900 dark:hover:text-white transition-colors"
+						className="hover:text-ink-900 transition-colors"
 					>
 						Terms of Service
 					</Link>
 					<Link
 						href="/privacy"
-						className="hover:text-gray-900 dark:hover:text-white transition-colors"
+						className="hover:text-ink-900 transition-colors"
 					>
 						Privacy Policy
 					</Link>

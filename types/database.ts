@@ -8,6 +8,7 @@ export type ProfessionType = "land_surveyor" | "gis_analyst" | "drone_pilot" | "
 export type NotificationType = "application" | "contract" | "message" | "payment" | "review" | "verification";
 export type MilestoneStatus = "pending" | "funded" | "submitted" | "approved" | "disputed" | "released";
 export type TransactionType = "escrow_deposit" | "milestone_release" | "refund" | "platform_fee";
+export type PricingModel = "flat" | "hectare" | "km" | "point" | "polygon" | "acre";
 
 export interface ExchangeRateOverride {
   id: string;
@@ -59,6 +60,13 @@ export interface ProfessionalProfile {
 	average_rating: number;
 	total_reviews: number;
 	software_tools: string[];
+	survey_equipment: string[];
+	delivery_formats: string[];
+	job_types_supported: string[];
+	accreditations: Record<string, string>;
+	service_area_geo: string | null;
+	service_area_radius_km: number | null;
+	service_area_label: string | null;
 	onboarding_completed: boolean;
 	onboarding_step: string;
 	onboarding_completed_at: string | null;
@@ -90,6 +98,12 @@ export interface Job {
 	budget_min: number | null;
 	budget_max: number | null;
 	screening_questions: string[] | null;
+	pricing_model: PricingModel;
+	pricing_unit_rate: number | null;
+	pricing_quantity: number | null;
+	pricing_unit: string | null;
+	mobilization_fee: number;
+	accuracy_class: string | null;
 	views_count: number;
 	view_count: number;
 	applications_count: number;
@@ -114,6 +128,8 @@ export interface Contract {
 	payment_released_at: string | null;
 	ngn_amount_paid: number | null;
 	exchange_rate_used: number | null;
+	is_milestone_based: boolean;
+	milestones_total_amount: number | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -222,6 +238,9 @@ export interface Milestone {
 	submitted_at: string | null;
 	approved_at: string | null;
 	released_at: string | null;
+	funded_reference: string | null;
+	paystack_payment_reference: string | null;
+	paystack_transfer_reference: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -241,5 +260,7 @@ export interface Transaction {
 	amount: number;
 	platform_fee: number;
 	status: string;
+	paystack_reference: string | null;
+	paystack_transfer_reference: string | null;
 	created_at: string;
 }

@@ -619,17 +619,108 @@ export default function ProfessionalProfilePage() {
 									</div>
 								</div>
 							)}
-							{prof?.secondary_profession && (
+						{prof?.secondary_profession && (
+							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+									Secondary Profession
+								</p>
+								<p className="font-semibold text-gray-900 dark:text-white">
+									{getProfessionLabel(prof.secondary_profession)}
+								</p>
+							</div>
+						)}
+						{prof?.survey_equipment?.length > 0 && (
+							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+									Survey Equipment
+								</p>
+								<div className="flex flex-wrap gap-2">
+									{prof.survey_equipment.map((tool: string) => (
+										<span
+											key={tool}
+											className="px-2 py-1 rounded-full bg-green-600 text-white text-xs font-medium"
+										>
+											{tool}
+										</span>
+									))}
+								</div>
+							</div>
+						)}
+						{prof?.delivery_formats?.length > 0 && (
+							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+									Delivery Formats
+								</p>
+								<div className="flex flex-wrap gap-2">
+									{prof.delivery_formats.map((fmt: string) => (
+										<span
+											key={fmt}
+											className="px-2 py-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium"
+										>
+											{fmt}
+										</span>
+									))}
+								</div>
+							</div>
+						)}
+						{prof?.job_types_supported?.length > 0 && (
+							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+									Job Types
+								</p>
+								<div className="flex flex-wrap gap-2">
+									{prof.job_types_supported.map((jt: string) => (
+										<span
+											key={jt}
+											className="px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium border border-emerald-200 dark:border-emerald-800"
+										>
+											{jt}
+										</span>
+									))}
+								</div>
+							</div>
+						)}
+						{prof?.accreditations &&
+							Object.keys(prof.accreditations).filter((k) =>
+								prof.accreditations[k],
+							).length > 0 && (
 								<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-									<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-										Secondary Profession
+									<p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+										Accreditations
 									</p>
-									<p className="font-semibold text-gray-900 dark:text-white">
-										{getProfessionLabel(prof.secondary_profession)}
-									</p>
+									<dl className="space-y-1">
+										{Object.entries(prof.accreditations)
+											.filter(
+												([key, val]) =>
+													val && typeof val === "string" && val.trim() !== "",
+											)
+											.map(([key, val]) => (
+												<div
+													key={key}
+													className="flex justify-between text-sm"
+												>
+													<dt className="text-gray-500 dark:text-gray-400">
+														{key}
+													</dt>
+													<dd className="font-medium text-gray-900 dark:text-white">
+														{String(val)}
+													</dd>
+												</div>
+											))}
+									</dl>
 								</div>
 							)}
-						</div>
+						{prof?.service_area_label && (
+							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+								<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+									Service Area
+								</p>
+								<p className="font-semibold text-gray-900 dark:text-white">
+									{prof.service_area_label}
+								</p>
+							</div>
+						)}
+					</div>
 
 						{profile?.bio && (
 							<div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">

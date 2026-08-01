@@ -3,8 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { PartyPopper } from "lucide-react";
+import { Download, PartyPopper } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
+import {
+	applyAttachmentError,
+	applyAttachmentKind,
+	MAX_APPLY_ATTACHMENT_DOCUMENT_SIZE,
+	MAX_APPLY_ATTACHMENT_GEODATA_SIZE,
+} from "@/lib/constants";
 
 type Job = {
   id: string;
@@ -19,6 +25,13 @@ type Job = {
   client_id: string;
   screening_questions?: string[] | null;
   experience_level?: string | null;
+  brief_attachment_url?: string | null;
+  pricing_model?: string | null;
+  pricing_unit_rate?: number | null;
+  pricing_quantity?: number | null;
+  pricing_unit?: string | null;
+  mobilization_fee?: number | null;
+  accuracy_class?: string | null;
 };
 
 export default function ApplyPage() {
@@ -48,6 +61,9 @@ export default function ApplyPage() {
   const [uploadProgress, setUploadProgress] = useState<
     "idle" | "uploading" | "done" | "error"
   >("idle");
+  const [briefUrl, setBriefUrl] = useState<string | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefError, setBriefError] = useState("");
 
   useEffect(() => {
     const init = async () => {
@@ -139,6 +155,33 @@ export default function ApplyPage() {
     init();
   }, [id, router, supabase]);
 
+  const fetchBriefUrl = async () => {
+    if (!job?.brief_attachment_url) return;
+    setBriefLoading(true);
+    setBriefError("");
+    try {
+      const res = await fetch("/api/storage/signed-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: job.brief_attachment_url,
+          bucket: "job-briefs",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.signedUrl) {
+        setBriefError(data?.error || "Could not generate download link.");
+      } else {
+        setBriefUrl(data.signedUrl);
+        window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      setBriefError("Network error generating download link.");
+    } finally {
+      setBriefLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (
       !coverLetter.trim() ||
@@ -177,16 +220,9 @@ export default function ApplyPage() {
     try {
       let portfolioAttachmentUrl: string | null = null;
       if (portfolioMode === "upload" && portfolioFile) {
-        const allowed = [
-          "application/pdf",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ];
-        const ext = portfolioFile.name.split(".").pop()?.toLowerCase();
-        if (
-          !allowed.includes(portfolioFile.type) ||
-          !["pdf", "docx"].includes(ext || "")
-        ) {
-          setError("Only PDF and DOCX files are allowed.");
+        const validationError = applyAttachmentError(portfolioFile);
+        if (validationError) {
+          setError(validationError);
           setSubmitting(false);
           return;
         }
@@ -196,7 +232,8 @@ export default function ApplyPage() {
           data: { user: uploadUser },
         } = await supabase.auth.getUser();
         const cleanName = portfolioFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-        const uploadPath = `${uploadUser!.id}/portfolio-${Date.now()}-${cleanName}`;
+        const kind = applyAttachmentKind(portfolioFile);
+        const uploadPath = `${uploadUser!.id}/portfolio-${Date.now()}-${kind}-${cleanName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("portfolio-attachments")
@@ -318,12 +355,48 @@ export default function ApplyPage() {
                 </p>
               </div>
               <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium px-3 py-1 rounded-full border border-emerald-500/20 whitespace-nowrap">
-                ${job.budget.toLocaleString()} {job.budget_type}
+                {job.pricing_model && job.pricing_model !== "flat" && job.pricing_unit_rate && job.pricing_quantity
+                  ? `$${Number(job.pricing_unit_rate).toFixed(2)}×${job.pricing_quantity} ${job.pricing_unit || ""} = $${job.budget.toLocaleString()}`
+                  : `$${job.budget.toLocaleString()} ${job.budget_type}`}
               </span>
             </div>
             <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed line-clamp-3">
               {job.description}
             </p>
+            {job.brief_attachment_url && (
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-1">
+                {!briefUrl && !briefLoading && (
+                  <button
+                    type="button"
+                    onClick={fetchBriefUrl}
+                    className="inline-flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                  >
+                    <Download className="w-4 h-4" /> Download job brief
+                  </button>
+                )}
+                {briefLoading && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 inline-flex items-center gap-2">
+                    <span className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                    Generating secure link...
+                  </p>
+                )}
+                {briefError && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {briefError}
+                  </p>
+                )}
+                {briefUrl && (
+                  <a
+                    href={briefUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                  >
+                    <Download className="w-4 h-4" /> Open job brief (link valid 1 hour)
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -525,26 +598,13 @@ export default function ApplyPage() {
                 <div className="space-y-2">
                   <input
                     type="file"
-                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,.geojson,.json,.kml,.kmz,.shp,.shx,.dbf,.prj,.cpg,.zip,.tif,.tiff,.geotiff,.laz,.las,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp,application/geo+json,application/vnd.geo+json,application/json,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz,application/zip,application/x-zip-compressed,image/tiff,application/geotiff,application/x-geotiff"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
                       if (file) {
-                        const allowed = [
-                          "application/pdf",
-                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        ];
-                        const ext = file.name.split(".").pop()?.toLowerCase();
-                        if (
-                          !allowed.includes(file.type) ||
-                          !["pdf", "docx"].includes(ext || "")
-                        ) {
-                          setError("Only PDF and DOCX files are allowed.");
-                          e.target.value = "";
-                          setPortfolioFile(null);
-                          return;
-                        }
-                        if (file.size > 5 * 1024 * 1024) {
-                          setError("File must be under 5MB.");
+                        const uploadError = applyAttachmentError(file);
+                        if (uploadError) {
+                          setError(uploadError);
                           e.target.value = "";
                           setPortfolioFile(null);
                           return;
@@ -557,6 +617,9 @@ export default function ApplyPage() {
                     aria-label="Upload portfolio file"
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
                   />
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    Documents/images up to {(MAX_APPLY_ATTACHMENT_DOCUMENT_SIZE / 1024 / 1024).toFixed(0)}MB. Geospatial datasets (GeoJSON, KML, KMZ, Shapefile zip, GeoTIFF, LAS/LAZ) up to {(MAX_APPLY_ATTACHMENT_GEODATA_SIZE / 1024 / 1024).toFixed(0)}MB.
+                  </p>
                   {portfolioFile && uploadProgress === "idle" && (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400">
                       ✓ {portfolioFile.name} (

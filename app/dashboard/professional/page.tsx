@@ -149,23 +149,31 @@ export default function ProfessionalDashboard() {
 					.eq("professional_id", user.id)
 					.in("status", ["active", "completed"]);
 
-				if (activeContracts && activeContracts.length > 0) {
-					const channel = supabase
-						.channel("professional-unread-messages")
-						.on(
-							"postgres_changes",
-							{ event: "INSERT", schema: "public", table: "messages" },
-							(payload) => {
-								const msg = payload.new as any;
-								const isMyContract = activeContracts.some(
-									(c) => c.id === msg.contract_id,
-								);
-								if (isMyContract && msg.sender_id !== user.id) {
-									setUnreadCount((prev) => prev + 1);
-								}
-							},
-						)
-						.subscribe();
+			if (activeContracts && activeContracts.length > 0) {
+				// Unique channel name per mount — without this, React StrictMode
+				// (dev only) double-mounts the effect: mount → unmount cleanup
+				// (which is async) → re-mount, and the second mount's
+				// .channel("professional-unread-messages") call returns the
+				// still-subscribed channel from the first mount before it has
+				// been removeChannel'd. supabase-js then refuses to add the
+				// postgres_changes callback to an already-subscribed channel.
+				const channelName = `professional-unread-messages-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+				const channel = supabase
+					.channel(channelName)
+					.on(
+						"postgres_changes",
+						{ event: "INSERT", schema: "public", table: "messages" },
+						(payload) => {
+							const msg = payload.new as any;
+							const isMyContract = activeContracts.some(
+								(c) => c.id === msg.contract_id,
+							);
+							if (isMyContract && msg.sender_id !== user.id) {
+								setUnreadCount((prev) => prev + 1);
+							}
+						},
+					)
+					.subscribe();
 
 					return () => {
 						supabase.removeChannel(channel);

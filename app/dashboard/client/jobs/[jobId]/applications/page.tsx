@@ -11,26 +11,34 @@ import type { Job, JobApplication, Profile } from "@/types/database";
 import BackButton from "@/components/ui/BackButton";
 import {
   Calendar,
-  CalendarDays,
   CheckCircle2,
+  ChevronRight,
   Inbox,
   MapPin,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
+
+type AppRow = Pick<
+  JobApplication,
+  | "id"
+  | "professional_id"
+  | "proposed_rate"
+  | "estimated_delivery"
+  | "status"
+  | "created_at"
+> & {
+  profiles: Pick<Profile, "full_name" | "country"> | null;
+};
 
 export default function JobApplicationsPage() {
   const router = useRouter();
   const { jobId } = useParams();
 
   const [job, setJob] = useState<Job | null>(null);
-  const [applications, setApplications] = useState<
-    (JobApplication & {
-      profiles: Pick<Profile, "full_name" | "country" | "email"> | null;
-    })[]
-  >([]);
+  const [applications, setApplications] = useState<AppRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [accepting, setAccepting] = useState<string | null>(null);
 
   useEffect(() => {
     const getData = async () => {
@@ -60,91 +68,33 @@ export default function JobApplicationsPage() {
         .from("job_applications")
         .select(
           `
-          *,
+          id,
+          professional_id,
+          proposed_rate,
+          estimated_delivery,
+          status,
+          created_at,
           profiles!job_applications_professional_id_fkey (
             full_name,
-            country,
-            email
+            country
           )
         `,
         )
         .eq("job_id", jobId)
         .order("created_at", { ascending: false });
 
-      setApplications(apps || []);
+      setApplications((apps || []) as unknown as AppRow[]);
       setLoading(false);
     };
     getData();
   }, [jobId, router]);
 
-  const handleAccept = async (
-    applicationId: string,
-    professionalId: string,
-  ) => {
-    if (!job) {
-      return;
-    }
-    const supabase = createClient();
-    setAccepting(applicationId);
-
-    try {
-      const acceptedApp = applications.find((a) => a.id === applicationId);
-      const { data: contract, error: contractError } = await supabase
-        .from("contracts")
-        .insert({
-          job_id: jobId,
-          client_id: job.client_id,
-          professional_id: professionalId,
-          application_id: applicationId,
-          agreed_budget: acceptedApp?.proposed_rate,
-          escrow_amount: acceptedApp?.proposed_rate,
-          status: "pending",
-        })
-        .select()
-        .single();
-
-      if (contractError || !contract) {
-        console.error("Contract creation failed:", contractError);
-        setAccepting(null);
-        return;
-      }
-
-      router.push(`/payments/${contract.id}`);
-    } catch (err) {
-      console.error(err);
-      setAccepting(null);
-    }
-  };
-
-  const handleReject = async (applicationId: string) => {
-    const supabase = createClient();
-    await supabase
-      .from("job_applications")
-      .update({ status: "rejected" })
-      .eq("id", applicationId);
-
-    setApplications((prev) =>
-      prev.map((a) =>
-        a.id === applicationId ? { ...a, status: "rejected" } : a,
-      ),
-    );
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString(userLocale(), {
+  const formatDate = (date: string) =>
+    new Date(date).toLocaleDateString(userLocale(), {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
-  };
-
-  const formatDelivery = (value: string | null) => {
-    if (!value) return "";
-    return value
-      .split("_")
-      .map((part) => part[0]?.toUpperCase() + part.slice(1))
-      .join(" ");
-  };
 
   if (loading) {
     return (
@@ -173,8 +123,7 @@ export default function JobApplicationsPage() {
           </p>
           <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 dark:text-gray-500">
             <span className="inline-flex items-center gap-1">
-              <Wallet className="w-3.5 h-3.5" /> ${job?.budget}{" "}
-              {job?.budget_type}
+              <Wallet className="w-3.5 h-3.5" /> ${job?.budget} {job?.budget_type}
             </span>
             <span className="inline-flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5" /> {job?.location || "Remote"}
@@ -203,115 +152,73 @@ export default function JobApplicationsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {applications.map((app) => (
-              <div
+              <Link
                 key={app.id}
-                className={`bg-white dark:bg-gray-900 rounded-2xl p-6 border transition-all ${
+                href={`/dashboard/client/jobs/${jobId}/applications/${app.id}`}
+                className={`block bg-white dark:bg-gray-900 rounded-2xl p-5 border transition-all hover:shadow-md ${
                   app.status === "accepted"
                     ? "border-green-400 dark:border-green-600"
                     : app.status === "rejected"
-                      ? "border-gray-200 dark:border-gray-800 opacity-60"
+                      ? "border-gray-200 dark:border-gray-800 opacity-70"
                       : "border-gray-100 dark:border-gray-800 hover:border-green-300 dark:hover:border-green-700"
                 }`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                        <span className="text-green-700 dark:text-green-300 text-sm font-bold">
-                          {app.profiles?.full_name
-                            ?.split(" ")
-                            .map((n: string) => n[0])
-                            .slice(0, 2)
-                            .join("") || "??"}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900 dark:text-white">
-                          {app.profiles?.full_name}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {app.profiles?.country}
-                        </p>
-                      </div>
-                      {/* View Profile link */}
-                      <Link
-                        href={`/professionals/${app.professional_id}`}
-                        className="ml-2 text-xs text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium underline underline-offset-2"
-                        target="_blank"
-                      >
-                        View Profile →
-                      </Link>
-                    </div>
-
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 leading-relaxed">
-                      {app.cover_letter}
-                    </p>
-
-                    <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
-                      <span className="inline-flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" /> Applied{" "}
-                        {formatDate(app.created_at)}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center shrink-0">
+                      <span className="text-green-700 dark:text-green-300 text-sm font-bold">
+                        {app.profiles?.full_name
+                          ?.split(" ")
+                          .map((n: string) => n[0])
+                          .slice(0, 2)
+                          .join("") || "??"}
                       </span>
-                      {app.estimated_delivery && (
-                        <span className="inline-flex items-center gap-1">
-                          <CalendarDays className="w-3.5 h-3.5" /> Estimated
-                          delivery {formatDelivery(app.estimated_delivery)}
-                        </span>
-                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-white truncate">
+                        {app.profiles?.full_name || "Applicant"}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {app.profiles?.country || "—"}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0 space-y-3">
-                    <div>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        ${app.proposed_rate}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        proposed rate
-                      </p>
+                  <div className="text-right shrink-0">
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">
+                      ${app.proposed_rate.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      proposed
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {formatDate(app.created_at)}
                     </div>
-
                     {app.status === "pending" && (
-                      <div className="space-y-2">
-                        <button
-                          onClick={() =>
-                            handleAccept(app.id, app.professional_id)
-                          }
-                          disabled={accepting === app.id}
-                          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-                        >
-                          {accepting === app.id
-                            ? "Creating contract..."
-                            : "Accept & Pay"}
-                        </button>
-                        <button
-                          onClick={() => handleReject(app.id)}
-                          className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-                        >
-                          Reject
-                        </button>
-                      </div>
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 whitespace-nowrap">
+                        Pending
+                      </span>
                     )}
-
                     {app.status === "accepted" && (
-                      <span className="block bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
-                        <span className="inline-flex items-center gap-1">
-                          <CheckCircle2 className="w-4 h-4" />
-                          Accepted
-                        </span>
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 whitespace-nowrap">
+                        <CheckCircle2 className="w-3 h-3" /> Accepted
                       </span>
                     )}
-
                     {app.status === "rejected" && (
-                      <span className="block bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm font-semibold px-4 py-2 rounded-xl text-center">
-                        Rejected
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        <X className="w-3 h-3" /> Rejected
                       </span>
                     )}
+                    <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600" />
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

@@ -303,17 +303,22 @@ function JobsPageContent() {
 											<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
 												{job.title}
 											</h3>
-											{job.job_type && (
-												<span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium px-2 py-1 rounded-full">
-													{getJobTypeLabel(job.job_type)}
-												</span>
-											)}
-											{job.required_verification && (
-												<span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-2 py-1 rounded-full">
-													Verified only
-												</span>
-											)}
-										</div>
+										{job.job_type && (
+											<span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium px-2 py-1 rounded-full">
+												{getJobTypeLabel(job.job_type)}
+											</span>
+										)}
+										{job.required_verification && (
+											<span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium px-2 py-1 rounded-full">
+												Verified only
+											</span>
+										)}
+										{job.brief_attachment_url && (
+											<span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-medium px-2 py-1 rounded-full">
+												Brief attached
+											</span>
+										)}
+									</div>
 
 										<p className="text-green-600 dark:text-green-400 text-sm font-medium mb-2">
 											{getProfessionLabel(job.profession_type)}
