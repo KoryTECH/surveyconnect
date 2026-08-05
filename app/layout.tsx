@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 	},
 	description:
 		"Connect with verified surveying and geospatial professionals. Post jobs, submit proposals, and get work done — securely, with escrow payments.",
-	metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://surveyconnect.vercel.app"),
+	metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://survey-connect-hub.vercel.app"),
 	keywords: [
 		"surveying",
 		"geospatial",
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		type: "website",
 		locale: "en_US",
-		url: "https://surveyconnect.vercel.app",
+		url: "https://survey-connect-hub.vercel.app",
 		siteName: "SurveyConnectHub",
 		title: "SurveyConnectHub – Marketplace for Geospatial Professionals",
 		description:

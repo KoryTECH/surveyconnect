@@ -21,6 +21,7 @@ export interface Profile {
 	id: string;
 	role: UserRole;
 	full_name: string;
+	username: string | null;
 	email: string;
 	phone: string | null;
 	country: string | null;
@@ -63,6 +64,7 @@ export interface ProfessionalProfile {
 	survey_equipment: string[];
 	delivery_formats: string[];
 	job_types_supported: string[];
+	primary_disciplines: string[];
 	accreditations: Record<string, string>;
 	service_area_geo: string | null;
 	service_area_radius_km: number | null;
@@ -203,7 +205,6 @@ export interface Message {
 
 export interface ClientProfile {
 	id: string;
-	company_name: string | null;
 	company_website: string | null;
 	industry: string | null;
 	total_jobs_posted: number;

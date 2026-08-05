@@ -74,6 +74,8 @@ export async function middleware(request: NextRequest) {
 		!user &&
 		!request.nextUrl.pathname.startsWith("/login") &&
 		!request.nextUrl.pathname.startsWith("/signup") &&
+		!request.nextUrl.pathname.startsWith("/forgot-password") &&
+		!request.nextUrl.pathname.startsWith("/reset-password") &&
 		!request.nextUrl.pathname.startsWith("/api/paystack") &&
 		request.nextUrl.pathname !== "/"
 	) {
@@ -167,7 +169,9 @@ export async function middleware(request: NextRequest) {
 			path.startsWith("/api") ||
 			path === "/" ||
 			path.startsWith("/login") ||
-			path.startsWith("/signup");
+			path.startsWith("/signup") ||
+			path.startsWith("/forgot-password") ||
+			path.startsWith("/reset-password");
 
 		if (!isAllowedBeforeOnboarding) {
 			const url = request.nextUrl.clone();

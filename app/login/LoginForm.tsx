@@ -18,8 +18,10 @@ export default function LoginForm() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
+	const [resetSuccess, setResetSuccess] = useState(false);
 
 	useEffect(() => {
+		setResetSuccess(searchParams.get("reset") === "success");
 		const err = searchParams.get("error");
 		if (err === "no_role") {
 			setError("Your account has no role assigned. Please contact support or sign up again.");
@@ -95,6 +97,13 @@ export default function LoginForm() {
 					<p className="text-gray-500 dark:text-gray-400 mt-2">Welcome back</p>
 				</div>
 
+				{/* Success Message */}
+				{resetSuccess && (
+					<div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg mb-6 text-sm">
+						Password updated successfully. Please log in with your new password.
+					</div>
+				)}
+
 				{/* Error Message */}
 				{error && (
 					<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-6 text-sm">
@@ -124,9 +133,17 @@ export default function LoginForm() {
 
 					{/* Password */}
 					<div>
-						<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Password
-						</label>
+						<div className="flex items-center justify-between mb-1">
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+								Password
+							</label>
+							<Link
+								href="/forgot-password"
+								className="text-xs font-medium text-green-600 hover:underline"
+							>
+								Forgot password?
+							</Link>
+						</div>
 						<div className="relative">
 							<input
 								type={showPassword ? "text" : "password"}

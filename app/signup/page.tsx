@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { createServiceClient } from "@/lib/supabase/service-client";
+import { JOB_TYPE_OPTIONS } from "@/lib/constants";
 import { Building2, Eye, EyeOff, Map } from "lucide-react";
+
+const DISCIPLINE_PRESETS = JOB_TYPE_OPTIONS.filter((d) => d !== "Other");
 
 export default function SignupPage() {
 	const router = useRouter();
@@ -13,6 +16,7 @@ export default function SignupPage() {
 
 	const [formData, setFormData] = useState({
 		fullName: "",
+		username: "",
 		email: "",
 		password: "",
 		confirmPassword: "",
@@ -20,11 +24,51 @@ export default function SignupPage() {
 		country: "",
 		phone: "",
 		agreedTerms: false,
+		primaryDisciplines: [] as string[],
+		customDisciplines: [] as string[],
 	});
+	const [disciplineInput, setDisciplineInput] = useState("");
+	const [disciplineError, setDisciplineError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+	const toggleDiscipline = (discipline: string) => {
+		setFormData((prev) => ({
+			...prev,
+			primaryDisciplines: prev.primaryDisciplines.includes(discipline)
+				? prev.primaryDisciplines.filter((d) => d !== discipline)
+				: [...prev.primaryDisciplines, discipline],
+		}));
+	};
+
+	const addCustomDiscipline = () => {
+		const value = disciplineInput.trim();
+		if (!value) {
+			setDisciplineError("Enter a discipline name first.");
+			return;
+		}
+		const exists =
+			formData.primaryDisciplines.some(
+				(d) => d.toLowerCase() === value.toLowerCase(),
+			) ||
+			formData.customDisciplines.some(
+				(d) => d.toLowerCase() === value.toLowerCase(),
+			);
+		if (exists) {
+			setDisciplineError("That discipline is already added.");
+			return;
+		}
+		// Auto-select the custom chip as soon as it is added.
+		setFormData((prev) => ({
+			...prev,
+			customDisciplines: [...prev.customDisciplines, value],
+			primaryDisciplines: [...prev.primaryDisciplines, value],
+		}));
+		setDisciplineInput("");
+		setDisciplineError("");
+	};
 
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -40,6 +84,15 @@ export default function SignupPage() {
 
 		if (!formData.role) {
 			setError("Please select whether you are a Client or Professional");
+			return;
+		}
+		if (
+			formData.role === "client" &&
+			!new RegExp("^[a-zA-Z0-9_]{3,20}$").test(formData.username.trim())
+		) {
+			setError(
+				"Username must be 3-20 characters using only letters, numbers, and underscores",
+			);
 			return;
 		}
 		if (formData.password !== formData.confirmPassword) {
@@ -88,12 +141,22 @@ export default function SignupPage() {
 				id: authData.user.id,
 				role: formData.role,
 				full_name: formData.fullName,
+				username:
+					formData.role === "client" ? formData.username.trim() : null,
 				email: formData.email,
 				phone: formData.phone,
 				country: formData.country,
 			});
 
-			if (profileError) throw profileError;
+			if (profileError) {
+				if (profileError.code === "23505") {
+					setError(
+						"That username is already taken. Please choose another one.",
+					);
+					return;
+				}
+				throw profileError;
+			}
 
 			if (formData.role === "client") {
 				const { error: clientError } = await serviceSupabase
@@ -112,6 +175,7 @@ export default function SignupPage() {
 						years_experience: 0,
 						license_number: null,
 						verification_status: "unverified",
+						primary_disciplines: formData.primaryDisciplines,
 					});
 
 				if (professionalError) throw professionalError;
@@ -206,6 +270,85 @@ export default function SignupPage() {
 							className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400"
 						/>
 					</div>
+
+					{/* Username (client only) */}
+					{formData.role === "client" && (
+						<div>
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Username <span className="text-red-500">*</span>
+							</label>
+							<input
+								type="text"
+								name="username"
+								value={formData.username}
+								onChange={handleChange}
+								placeholder="e.g. alex_lambert"
+								className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400"
+							/>
+							<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+								3-20 characters: letters, numbers, and underscores only.
+							</p>
+						</div>
+					)}
+
+					{/* Primary discipline chips (professional only) */}
+					{formData.role === "professional" && (
+						<div>
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+								Primary Discipline
+							</label>
+							<div className="flex flex-wrap gap-2">
+								{[...DISCIPLINE_PRESETS, ...formData.customDisciplines].map(
+									(discipline) => {
+										const isSelected =
+											formData.primaryDisciplines.includes(discipline);
+										return (
+											<button
+												type="button"
+												key={discipline}
+												onClick={() => toggleDiscipline(discipline)}
+												className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+													isSelected
+														? "bg-green-600 text-white border-green-600"
+														: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-green-500"
+												}`}
+											>
+												{discipline}
+											</button>
+										);
+									},
+								)}
+							</div>
+							<div className="flex gap-2 mt-3">
+								<input
+									type="text"
+									value={disciplineInput}
+									onChange={(e) => {
+										setDisciplineInput(e.target.value);
+										setDisciplineError("");
+									}}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											e.preventDefault();
+											addCustomDiscipline();
+										}
+									}}
+									placeholder="Add a custom discipline"
+									className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500"
+								/>
+								<button
+									type="button"
+									onClick={addCustomDiscipline}
+									className="px-4 py-2 rounded-xl border border-green-600 text-green-600 font-semibold hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+								>
+									+ Add
+								</button>
+							</div>
+							{disciplineError && (
+								<p className="text-xs text-red-500 mt-1">{disciplineError}</p>
+							)}
+						</div>
+					)}
 
 					{/* Email */}
 					<div>
