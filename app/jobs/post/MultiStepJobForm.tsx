@@ -491,6 +491,10 @@ export default function MultiStepJobForm() {
 	return (
 		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-12 px-4 transition-colors duration-300">
 			<div className="max-w-2xl mx-auto">
+				<div className="mb-6">
+					<BackButton href="/dashboard/client" label="Dashboard" />
+				</div>
+
 				<div className="text-center mb-8">
 					<h1 className="text-3xl font-bold text-gray-900 dark:text-white">
 						Survey<span className="text-green-600">ConnectHub</span>

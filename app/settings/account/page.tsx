@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import { useLoadingState } from "@/hooks/useLoadingState";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import BackButton from "@/components/ui/BackButton";
@@ -15,6 +15,51 @@ type Bank = {
 	code: string;
 	name: string;
 };
+
+function SettingsModal({
+	title,
+	onClose,
+	children,
+}: {
+	title: string;
+	onClose: () => void;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+			<div
+				className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+				onClick={onClose}
+			/>
+			<div
+				role="dialog"
+				aria-modal="true"
+				className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-2xl ring-1 ring-emerald-200/70 dark:ring-emerald-900/50"
+			>
+				<div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-400" />
+				<div className="p-6">
+					<div className="flex items-start justify-between gap-4">
+						<h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+							{title}
+						</h2>
+						<button
+							type="button"
+							onClick={onClose}
+							className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+							aria-label="Close"
+						>
+							<X className="w-4 h-4" />
+						</button>
+					</div>
+					{children}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+const maskAccountNumber = (acc: string) =>
+	acc ? `••••••${acc.slice(-4)}` : "Not set";
 
 export default function AccountSettingsPage() {
 	const router = useRouter();
@@ -32,6 +77,7 @@ export default function AccountSettingsPage() {
 		useLoadingState();
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
+	const [userEmail, setUserEmail] = useState("");
 	const [isProfessional, setIsProfessional] = useState(false);
 	const [banks, setBanks] = useState<Bank[]>([]);
 	const [softwareTools, setSoftwareTools] = useState<string[]>([]);
@@ -54,11 +100,28 @@ export default function AccountSettingsPage() {
 	});
 
 	const [passwordForm, setPasswordForm] = useState({
+		currentPassword: "",
 		newPassword: "",
 		confirmPassword: "",
 	});
+	const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+	const [passwordModalError, setPasswordModalError] = useState("");
+	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 	const [showNewPassword, setShowNewPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+	const [payoutModalOpen, setPayoutModalOpen] = useState(false);
+	const [payoutModalPassword, setPayoutModalPassword] = useState("");
+	const [payoutModalError, setPayoutModalError] = useState("");
+	const [showPayoutPassword, setShowPayoutPassword] = useState(false);
+	const [payoutEditable, setPayoutEditable] = useState(false);
+	const { isLoading: isPayoutAuthLoading, withLoading: withPayoutAuthLoading } =
+		useLoadingState();
+	const payoutSnapshot = useRef({
+		bank_name: "",
+		bank_account_number: "",
+		bank_account_name: "",
+	});
 
 	useEffect(() => {
 		const init = async () => {
@@ -70,6 +133,8 @@ export default function AccountSettingsPage() {
 				router.push("/login");
 				return;
 			}
+
+			setUserEmail(user.email || "");
 
 			const { data: profileData, error: profileError } = await supabase
 				.from("profiles")
@@ -96,6 +161,12 @@ export default function AccountSettingsPage() {
 				bank_account_number: profileData.bank_account_number || "",
 				bank_account_name: profileData.bank_account_name || "",
 			});
+
+			payoutSnapshot.current = {
+				bank_name: profileData.bank_name || "",
+				bank_account_number: profileData.bank_account_number || "",
+				bank_account_name: profileData.bank_account_name || "",
+			};
 
 			setPreferences({
 				notification_email: profileData.notification_email ?? true,
@@ -202,6 +273,14 @@ export default function AccountSettingsPage() {
 			}
 
 			if (isProfessional) {
+				payoutSnapshot.current = {
+					bank_name: profile.bank_name || "",
+					bank_account_number: profile.bank_account_number || "",
+					bank_account_name: profile.bank_account_name || "",
+				};
+			}
+
+			if (isProfessional) {
 				const { error: professionalError } = await supabase
 					.from("professional_profiles")
 					.update({ software_tools: softwareTools })
@@ -244,32 +323,94 @@ export default function AccountSettingsPage() {
 		});
 	};
 
-	const updatePassword = () => {
-		setError("");
-		setMessage("");
+	const openPasswordModal = () => {
+		setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+		setPasswordModalError("");
+		setPasswordModalOpen(true);
+	};
+
+	const saveNewPassword = () => {
+		setPasswordModalError("");
+
+		if (!passwordForm.currentPassword) {
+			setPasswordModalError("Please enter your current password");
+			return;
+		}
 
 		if (passwordForm.newPassword.length < 8) {
-			setError("Password must be at least 8 characters");
+			setPasswordModalError("New password must be at least 8 characters");
 			return;
 		}
 
 		if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-			setError("Passwords do not match");
+			setPasswordModalError("New passwords do not match");
 			return;
 		}
 
 		withPasswordLoading(async () => {
+			const { error: verifyError } = await supabase.auth.signInWithPassword({
+				email: userEmail,
+				password: passwordForm.currentPassword,
+			});
+
+			if (verifyError) {
+				setPasswordModalError("Current password is incorrect");
+				return;
+			}
+
 			const { error: passwordError } = await supabase.auth.updateUser({
 				password: passwordForm.newPassword,
 			});
 
 			if (passwordError) {
-				setError(passwordError.message || "Failed to update password");
-			} else {
-				setPasswordForm({ newPassword: "", confirmPassword: "" });
-				setMessage("Password updated successfully");
+				setPasswordModalError(passwordError.message || "Failed to update password");
+				return;
 			}
+
+			setPasswordForm({
+				currentPassword: "",
+				newPassword: "",
+				confirmPassword: "",
+			});
+			setPasswordModalOpen(false);
+			setMessage("Password updated successfully");
 		});
+	};
+
+	const openPayoutModal = () => {
+		setPayoutModalPassword("");
+		setPayoutModalError("");
+		setPayoutModalOpen(true);
+	};
+
+	const confirmPayoutAuth = () => {
+		setPayoutModalError("");
+
+		if (!payoutModalPassword) {
+			setPayoutModalError("Please enter your current password");
+			return;
+		}
+
+		withPayoutAuthLoading(async () => {
+			const { error: verifyError } = await supabase.auth.signInWithPassword({
+				email: userEmail,
+				password: payoutModalPassword,
+			});
+
+			if (verifyError) {
+				setPayoutModalError("Current password is incorrect");
+				return;
+			}
+
+			setPayoutModalPassword("");
+			setPayoutModalOpen(false);
+			setPayoutEditable(true);
+		});
+	};
+
+	const cancelPayoutEdit = () => {
+		setProfile((prev) => ({ ...prev, ...payoutSnapshot.current }));
+		setPayoutEditable(false);
 	};
 
 	const handleSignOut = () => {
@@ -427,79 +568,139 @@ export default function AccountSettingsPage() {
 
 					{isProfessional && (
 						<div className="space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-							<p className="font-medium text-gray-900 dark:text-white">
-								Payout Details
-							</p>
-							<label
-								htmlFor="settings-bank"
-								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>
-								Bank
-							</label>
-							<select
-								id="settings-bank"
-								value={profile.bank_name}
-								onChange={(e) =>
-									setProfile((prev) => ({ ...prev, bank_name: e.target.value }))
-								}
-								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-							>
-								<option value="">Select bank</option>
-								{banks.map((bank) => (
-									<option
-										key={`${bank.code}-${bank.name}`}
-										value={bank.code}
+							<div className="flex items-center justify-between">
+								<p className="font-medium text-gray-900 dark:text-white">
+									Payout Details
+								</p>
+								{payoutEditable && (
+									<button
+										type="button"
+										onClick={cancelPayoutEdit}
+										className="text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
 									>
-										{bank.name}
-									</option>
-								))}
-							</select>
-							<div>
-								<label
-									htmlFor="settings-bank-account-number"
-									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-								>
-									Bank account number
-								</label>
-								<input
-									id="settings-bank-account-number"
-									type="text"
-									placeholder="Bank account number"
-									maxLength={10}
-									value={profile.bank_account_number}
-									onChange={(e) =>
-										setProfile((prev) => ({
-											...prev,
-											bank_account_number: e.target.value.replace(
-												/[^0-9]/g,
-												"",
-											),
-										}))
-									}
-									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-								/>
+										Cancel
+									</button>
+								)}
 							</div>
-							<div>
-								<label
-									htmlFor="settings-bank-account-name"
-									className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+
+							{payoutEditable ? (
+								<>
+									<label
+										htmlFor="settings-bank"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>
+										Bank
+									</label>
+									<select
+										id="settings-bank"
+										value={profile.bank_name}
+										onChange={(e) =>
+											setProfile((prev) => ({
+												...prev,
+												bank_name: e.target.value,
+											}))
+										}
+										className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+									>
+										<option value="">Select bank</option>
+										{banks.map((bank) => (
+											<option
+												key={`${bank.code}-${bank.name}`}
+												value={bank.code}
+											>
+												{bank.name}
+											</option>
+										))}
+									</select>
+									<div>
+										<label
+											htmlFor="settings-bank-account-number"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+										>
+											Bank account number
+										</label>
+										<input
+											id="settings-bank-account-number"
+											type="text"
+											placeholder="Bank account number"
+											maxLength={10}
+											value={profile.bank_account_number}
+											onChange={(e) =>
+												setProfile((prev) => ({
+													...prev,
+													bank_account_number: e.target.value.replace(
+														/[^0-9]/g,
+														"",
+													),
+												}))
+											}
+											className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+										/>
+									</div>
+									<div>
+										<label
+											htmlFor="settings-bank-account-name"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+										>
+											Bank account name
+										</label>
+										<input
+											id="settings-bank-account-name"
+											type="text"
+											placeholder="Bank account name"
+											value={profile.bank_account_name}
+											onChange={(e) =>
+												setProfile((prev) => ({
+													...prev,
+													bank_account_name: e.target.value,
+												}))
+											}
+											className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+										/>
+									</div>
+								</>
+							) : (
+								<div className="space-y-3 text-sm">
+									<div>
+										<p className="text-gray-500 dark:text-gray-400">Bank</p>
+										<p className="mt-0.5 font-medium text-gray-900 dark:text-white">
+											{banks.find((b) => b.code === profile.bank_name)?.name ||
+												profile.bank_name ||
+												"Not set"}
+										</p>
+									</div>
+									<div>
+										<p className="text-gray-500 dark:text-gray-400">
+											Bank account number
+										</p>
+										<p className="mt-0.5 font-medium text-gray-900 dark:text-white">
+											{maskAccountNumber(profile.bank_account_number)}
+										</p>
+									</div>
+									<div>
+										<p className="text-gray-500 dark:text-gray-400">
+											Bank account name
+										</p>
+										<p className="mt-0.5 font-medium text-gray-900 dark:text-white">
+											{profile.bank_account_name || "Not set"}
+										</p>
+									</div>
+								</div>
+							)}
+
+							{payoutEditable ? (
+								<p className="text-xs text-gray-500 dark:text-gray-400">
+									Changes are applied when you click Save Profile.
+								</p>
+							) : (
+								<button
+									type="button"
+									onClick={openPayoutModal}
+									className="px-4 py-2 rounded-xl border border-green-600 text-green-600 font-semibold hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
 								>
-									Bank account name
-								</label>
-								<input
-									id="settings-bank-account-name"
-									type="text"
-									placeholder="Bank account name"
-									value={profile.bank_account_name}
-									onChange={(e) =>
-										setProfile((prev) => ({
-											...prev,
-											bank_account_name: e.target.value,
-										}))
-									}
-									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-								/>
-							</div>
+									Edit payout details
+								</button>
+							)}
 
 							<div>
 								<p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -609,91 +810,16 @@ export default function AccountSettingsPage() {
 					<h3 className="text-lg font-semibold text-gray-900 dark:text-white">
 						Security
 					</h3>
-					<div>
-						<label
-							htmlFor="settings-new-password"
-							className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-						>
-							New password
-						</label>
-						<div className="relative">
-							<input
-								id="settings-new-password"
-								type={showNewPassword ? "text" : "password"}
-								placeholder="New password"
-								value={passwordForm.newPassword}
-								onChange={(e) =>
-									setPasswordForm((prev) => ({
-										...prev,
-										newPassword: e.target.value,
-									}))
-								}
-								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 pr-11 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-							/>
-							<button
-								type="button"
-								onClick={() => setShowNewPassword((prev) => !prev)}
-								className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-								aria-label={
-									showNewPassword ? "Hide new password" : "Show new password"
-								}
-							>
-								{showNewPassword ? (
-									<EyeOff className="w-4 h-4" />
-								) : (
-									<Eye className="w-4 h-4" />
-								)}
-							</button>
-						</div>
-					</div>
-					<div>
-						<label
-							htmlFor="settings-confirm-password"
-							className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-						>
-							Confirm password
-						</label>
-						<div className="relative">
-							<input
-								id="settings-confirm-password"
-								type={showConfirmPassword ? "text" : "password"}
-								placeholder="Confirm password"
-								value={passwordForm.confirmPassword}
-								onChange={(e) =>
-									setPasswordForm((prev) => ({
-										...prev,
-										confirmPassword: e.target.value,
-									}))
-								}
-								className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 pr-11 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-							/>
-							<button
-								type="button"
-								onClick={() => setShowConfirmPassword((prev) => !prev)}
-								className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-								aria-label={
-									showConfirmPassword
-										? "Hide confirm password"
-										: "Show confirm password"
-								}
-							>
-								{showConfirmPassword ? (
-									<EyeOff className="w-4 h-4" />
-								) : (
-									<Eye className="w-4 h-4" />
-								)}
-							</button>
-						</div>
-					</div>
-					<LoadingButton
+					<p className="text-sm text-gray-500 dark:text-gray-400">
+						Use a password of at least 8 characters to secure your account.
+					</p>
+					<button
 						type="button"
-						onClick={updatePassword}
-						isLoading={isSavingPassword}
-						loadingText="Updating..."
+						onClick={openPasswordModal}
 						className="px-5 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-50"
 					>
-						Update Password
-					</LoadingButton>
+						Change Password
+					</button>
 				</div>
 
 				<div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 space-y-3">
@@ -731,6 +857,206 @@ export default function AccountSettingsPage() {
 					</button>
 				</div>
 			</div>
+
+			{passwordModalOpen && (
+				<SettingsModal
+					title="Change Password"
+					onClose={() => setPasswordModalOpen(false)}
+				>
+					<div className="mt-4 space-y-4">
+						{passwordModalError && (
+							<div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+								{passwordModalError}
+							</div>
+						)}
+						<div>
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Current password
+							</label>
+							<div className="relative">
+								<input
+									type={showCurrentPassword ? "text" : "password"}
+									placeholder="Current password"
+									value={passwordForm.currentPassword}
+									onChange={(e) =>
+										setPasswordForm((prev) => ({
+											...prev,
+											currentPassword: e.target.value,
+										}))
+									}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 pr-11 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowCurrentPassword((prev) => !prev)}
+									className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+									aria-label={
+										showCurrentPassword ? "Hide current password" : "Show current password"
+									}
+								>
+									{showCurrentPassword ? (
+										<EyeOff className="w-4 h-4" />
+									) : (
+										<Eye className="w-4 h-4" />
+									)}
+								</button>
+							</div>
+						</div>
+						<div>
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								New password
+							</label>
+							<div className="relative">
+								<input
+									type={showNewPassword ? "text" : "password"}
+									placeholder="New password"
+									value={passwordForm.newPassword}
+									onChange={(e) =>
+										setPasswordForm((prev) => ({
+											...prev,
+											newPassword: e.target.value,
+										}))
+									}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 pr-11 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowNewPassword((prev) => !prev)}
+									className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+									aria-label={
+										showNewPassword ? "Hide new password" : "Show new password"
+									}
+								>
+									{showNewPassword ? (
+										<EyeOff className="w-4 h-4" />
+									) : (
+										<Eye className="w-4 h-4" />
+									)}
+								</button>
+							</div>
+						</div>
+						<div>
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Confirm new password
+							</label>
+							<div className="relative">
+								<input
+									type={showConfirmPassword ? "text" : "password"}
+									placeholder="Confirm new password"
+									value={passwordForm.confirmPassword}
+									onChange={(e) =>
+										setPasswordForm((prev) => ({
+											...prev,
+											confirmPassword: e.target.value,
+										}))
+									}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 pr-11 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowConfirmPassword((prev) => !prev)}
+									className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+									aria-label={
+										showConfirmPassword
+											? "Hide confirm password"
+											: "Show confirm password"
+									}
+								>
+									{showConfirmPassword ? (
+										<EyeOff className="w-4 h-4" />
+									) : (
+										<Eye className="w-4 h-4" />
+									)}
+								</button>
+							</div>
+						</div>
+						<div className="flex items-center justify-end gap-3 pt-1">
+							<button
+								type="button"
+								onClick={() => setPasswordModalOpen(false)}
+								className="rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+								disabled={isSavingPassword}
+							>
+								Cancel
+							</button>
+							<LoadingButton
+								type="button"
+								onClick={saveNewPassword}
+								isLoading={isSavingPassword}
+								loadingText="Updating..."
+								className="rounded-xl px-4 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 disabled:opacity-70"
+							>
+								Update Password
+							</LoadingButton>
+						</div>
+					</div>
+				</SettingsModal>
+			)}
+
+			{payoutModalOpen && (
+				<SettingsModal
+					title="Edit Payout Details"
+					onClose={() => setPayoutModalOpen(false)}
+				>
+					<div className="mt-4 space-y-4">
+						<p className="text-sm text-gray-500 dark:text-gray-400">
+							Enter your current password to unlock payout details.
+						</p>
+						{payoutModalError && (
+							<div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+								{payoutModalError}
+							</div>
+						)}
+						<div>
+							<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+								Current password
+							</label>
+							<div className="relative">
+								<input
+									type={showPayoutPassword ? "text" : "password"}
+									placeholder="Current password"
+									value={payoutModalPassword}
+									onChange={(e) => setPayoutModalPassword(e.target.value)}
+									className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 pr-11 bg-white dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowPayoutPassword((prev) => !prev)}
+									className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+									aria-label={
+										showPayoutPassword ? "Hide password" : "Show password"
+									}
+								>
+									{showPayoutPassword ? (
+										<EyeOff className="w-4 h-4" />
+									) : (
+										<Eye className="w-4 h-4" />
+									)}
+								</button>
+							</div>
+						</div>
+						<div className="flex items-center justify-end gap-3 pt-1">
+							<button
+								type="button"
+								onClick={() => setPayoutModalOpen(false)}
+								className="rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+								disabled={isPayoutAuthLoading}
+							>
+								Cancel
+							</button>
+							<LoadingButton
+								type="button"
+								onClick={confirmPayoutAuth}
+								isLoading={isPayoutAuthLoading}
+								loadingText="Verifying..."
+								className="rounded-xl px-4 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 disabled:opacity-70"
+							>
+								Unlock
+							</LoadingButton>
+						</div>
+					</div>
+				</SettingsModal>
+			)}
 
 			<ActionModal
 				open={signOutModalOpen}

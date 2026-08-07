@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import Image from "next/image";
 import ActionModal from "@/components/ui/ActionModal";
+import BackButton from "@/components/ui/BackButton";
 import {
 	PROFESSION_OPTIONS as professionOptions,
 	SOFTWARE_TOOL_OPTIONS as softwareToolOptions,
@@ -387,9 +388,12 @@ export default function ProfessionalOnboardingPage() {
 	return (
 		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
 			<nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
-				<h1 className="text-xl font-bold text-gray-900 dark:text-white">
-					Survey<span className="text-green-600">ConnectHub</span>
-				</h1>
+				<div className="flex items-center gap-4">
+					<BackButton href="/dashboard/professional" label="Dashboard" />
+					<h1 className="text-xl font-bold text-gray-900 dark:text-white">
+						Survey<span className="text-green-600">ConnectHub</span>
+					</h1>
+				</div>
 				<button
 					type="button"
 					onClick={async () => {

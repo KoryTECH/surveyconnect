@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import BookmarkButton from "@/components/BookmarkButton";
 import { CardSkeleton } from "@/components/ui/Skeleton";
+import BackButton from "@/components/ui/BackButton";
 import type { Job, Profile } from "@/types/database";
 
 const PAGE_SIZE = 10;
@@ -175,20 +176,20 @@ function JobsPageContent() {
 	return (
 		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
 			<nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
-				<h1 className="text-xl font-bold text-gray-900 dark:text-white">
-					Survey<span className="text-green-600">ConnectHub</span>
-				</h1>
 				<div className="flex items-center gap-4">
-					<Link
+					<BackButton
 						href={
 							profile?.role === "client"
 								? "/dashboard/client"
 								: "/dashboard/professional"
 						}
-						className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-					>
-						Dashboard
-					</Link>
+						label="Dashboard"
+					/>
+					<h1 className="text-xl font-bold text-gray-900 dark:text-white">
+						Survey<span className="text-green-600">ConnectHub</span>
+					</h1>
+				</div>
+				<div className="flex items-center gap-4">
 					<span className="text-gray-600 dark:text-gray-300 text-sm">
 						{profile?.full_name}
 					</span>

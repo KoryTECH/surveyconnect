@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { userLocale } from "@/lib/datetime";
 import { Circle, Hourglass, Lock, MessageCircle } from "lucide-react";
+import BackButton from "@/components/ui/BackButton";
 
 export default function MessagesPage() {
 	const params = useParams();
@@ -247,12 +247,7 @@ export default function MessagesPage() {
 		<div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
 			<nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between shrink-0">
 				<div className="flex items-center gap-3">
-					<Link
-						href={dashboardLink}
-						className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-					>
-						←
-					</Link>
+					<BackButton href={dashboardLink} label="Contracts" />
 					<div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
 						<span className="text-green-700 dark:text-green-300 text-sm font-bold">
 							{getInitials(otherPerson || "")}

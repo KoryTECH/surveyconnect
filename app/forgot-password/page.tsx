@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import BackButton from "@/components/ui/BackButton";
 
 export default function ForgotPasswordPage() {
 	const supabase = createClient();
@@ -35,7 +36,10 @@ export default function ForgotPasswordPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center py-12 px-4 transition-colors duration-300">
+		<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center py-12 px-4 transition-colors duration-300 relative">
+			<div className="absolute top-6 left-6">
+				<BackButton href="/" label="Home" />
+			</div>
 			<div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-8 border border-transparent dark:border-gray-800">
 				<div className="text-center mb-8">
 					<h1 className="text-3xl font-bold text-gray-900 dark:text-white">

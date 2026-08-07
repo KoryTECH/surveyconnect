@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CheckCircle2, Hourglass, Users } from "lucide-react";
 import { firstOf } from "@/lib/db";
 import { CardSkeleton } from "@/components/ui/Skeleton";
+import BackButton from "@/components/ui/BackButton";
 import type { Profile, ProfessionalProfile } from "@/types/database";
 import {
 	getProfessionLabel,
@@ -168,16 +169,14 @@ function ProfessionalsPageContent() {
 				<h1 className="text-xl font-bold text-gray-900 dark:text-white">
 					Survey<span className="text-green-600">ConnectHub</span>
 				</h1>
-				<Link
+				<BackButton
 					href={
 						profile?.role === "client"
 							? "/dashboard/client"
 							: "/dashboard/professional"
 					}
-					className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-				>
-					← Dashboard
-				</Link>
+					label="Dashboard"
+				/>
 			</nav>
 
 			<div className="max-w-6xl mx-auto px-6 py-8">
