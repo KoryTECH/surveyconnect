@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { userLocale } from "@/lib/datetime";
 import { Circle, Hourglass, Lock, MessageCircle } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
+import ReportContractModal from "@/components/ui/ReportContractModal";
 
 export default function MessagesPage() {
 	const params = useParams();
@@ -19,6 +20,7 @@ export default function MessagesPage() {
 	const [loading, setLoading] = useState(true);
 	const [newMessage, setNewMessage] = useState("");
 	const [sending, setSending] = useState(false);
+	const [reportOpen, setReportOpen] = useState(false);
 	const [userRole, setUserRole] = useState<string>("");
 	const bottomRef = useRef<HTMLDivElement>(null);
 	const supabase = useMemo(() => createClient(), []);
@@ -262,6 +264,7 @@ export default function MessagesPage() {
 						</p>
 					</div>
 				</div>
+			<div className="flex items-center gap-3">
 				{isChatLocked ? (
 					<span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs font-medium px-3 py-1 rounded-full">
 						<span className="inline-flex items-center gap-1">
@@ -284,7 +287,14 @@ export default function MessagesPage() {
 						</span>
 					</span>
 				)}
-			</nav>
+				<button
+					onClick={() => setReportOpen(true)}
+					className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+				>
+					Report this contract
+				</button>
+			</div>
+		</nav>
 
 			<div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
 				{messages.length === 0 && (
@@ -379,6 +389,12 @@ export default function MessagesPage() {
 					</div>
 				)}
 			</div>
+
+			<ReportContractModal
+				open={reportOpen}
+				contractId={contractId}
+				onClose={() => setReportOpen(false)}
+			/>
 		</div>
 	);
 }

@@ -265,3 +265,15 @@ export interface Transaction {
 	paystack_transfer_reference: string | null;
 	created_at: string;
 }
+
+export type ContractReportStatus = "open" | "resolved" | "dismissed";
+
+export interface ContractReport {
+	id: string;
+	contract_id: string;
+	reporter_id: string;
+	reason: string;
+	details: string | null;
+	status: ContractReportStatus;
+	created_at: string;
+}

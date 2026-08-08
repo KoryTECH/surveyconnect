@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Lock } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
+import ReportContractModal from "@/components/ui/ReportContractModal";
 
 interface Contract {
   id: string;
@@ -30,6 +31,7 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
 
   const fetchContract = useCallback(async () => {
     if (!contractId) {
@@ -239,9 +241,22 @@ export default function PaymentPage() {
             >
               Cancel and go back
             </button>
+
+            <button
+              onClick={() => setReportOpen(true)}
+              className="w-full mt-2 text-sm text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+            >
+              Report this contract
+            </button>
           </>
         )}
       </div>
+
+      <ReportContractModal
+        open={reportOpen}
+        contractId={contractId}
+        onClose={() => setReportOpen(false)}
+      />
     </div>
   );
 }
