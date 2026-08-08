@@ -277,3 +277,12 @@ export interface ContractReport {
 	status: ContractReportStatus;
 	created_at: string;
 }
+
+export interface AdminAction {
+	id: string;
+	admin_id: string;
+	action: string;
+	contract_id: string | null;
+	details: Record<string, unknown> | null;
+	created_at: string;
+}
