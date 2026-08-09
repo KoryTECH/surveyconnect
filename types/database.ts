@@ -198,6 +198,8 @@ export interface Message {
 	content: string;
 	attachment_url: string | null;
 	attachment_type: string | null;
+	attachment_name: string | null;
+	attachment_size: number | null;
 	is_read: boolean;
 	read_at: string | null;
 	created_at: string;

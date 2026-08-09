@@ -4,9 +4,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { userLocale } from "@/lib/datetime";
-import { Circle, Hourglass, Lock, MessageCircle } from "lucide-react";
+import { Circle, FileText, Hourglass, Lock, MessageCircle, Paperclip, X } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
 import ReportContractModal from "@/components/ui/ReportContractModal";
+
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = [
+	"application/pdf",
+	"application/msword",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"image/jpeg",
+	"image/png",
+	"image/webp",
+	"text/plain",
+];
 
 export default function MessagesPage() {
 	const params = useParams();
@@ -21,8 +32,11 @@ export default function MessagesPage() {
 	const [newMessage, setNewMessage] = useState("");
 	const [sending, setSending] = useState(false);
 	const [reportOpen, setReportOpen] = useState(false);
+	const [selectedFile, setSelectedFile] = useState<File | null>(null);
+	const [attachError, setAttachError] = useState("");
 	const [userRole, setUserRole] = useState<string>("");
 	const bottomRef = useRef<HTMLDivElement>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 	const supabase = useMemo(() => createClient(), []);
 
 	useEffect(() => {
@@ -169,7 +183,7 @@ export default function MessagesPage() {
 	}, [messages]);
 
 	const handleSend = async () => {
-		if (!newMessage.trim() || sending || !user || !contract) return;
+		if ((!newMessage.trim() && !selectedFile) || sending || !user || !contract) return;
 
 		// Authorization check: only participants can send messages
 		if (contract.client_id !== user.id && contract.professional_id !== user.id) {
@@ -177,15 +191,58 @@ export default function MessagesPage() {
 		}
 
 		setSending(true);
+		setAttachError("");
+
+		let attachmentUrl: string | null = null;
+		let attachmentName: string | null = null;
+		let attachmentSize: number | null = null;
+		let attachmentType: string | null = null;
+
+		if (selectedFile) {
+			const cleanName = selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+			const filePath = `${contractId}/${Date.now()}-${cleanName}`;
+			const { error: uploadError } = await supabase.storage
+				.from("message-attachments")
+				.upload(filePath, selectedFile, {
+					contentType: selectedFile.type || undefined,
+				});
+
+			if (uploadError) {
+				setAttachError("File upload failed. Please try again.");
+				setSending(false);
+				return;
+			}
+
+			attachmentUrl = filePath;
+			attachmentName = selectedFile.name;
+			attachmentSize = selectedFile.size;
+			attachmentType = selectedFile.type || null;
+		}
 
 		const { error } = await supabase.from("messages").insert({
 			contract_id: contractId,
 			sender_id: user.id,
 			content: newMessage.trim(),
+			attachment_url: attachmentUrl,
+			attachment_name: attachmentName,
+			attachment_size: attachmentSize,
+			attachment_type: attachmentType,
 			is_read: false,
 		});
 
-		if (!error) setNewMessage("");
+		if (error) {
+			// Roll back the upload so orphaned files don't accumulate
+			if (attachmentUrl) {
+				supabase.storage
+					.from("message-attachments")
+					.remove([attachmentUrl])
+					.catch(() => {});
+			}
+			setAttachError("Could not send message. Please try again.");
+		} else {
+			setNewMessage("");
+			setSelectedFile(null);
+		}
 		setSending(false);
 	};
 
@@ -194,6 +251,40 @@ export default function MessagesPage() {
 			e.preventDefault();
 			handleSend();
 		}
+	};
+
+	const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setAttachError("");
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		if (file.size > MAX_ATTACHMENT_SIZE) {
+			setAttachError("File is too large. Maximum size is 5 MB.");
+			e.target.value = "";
+			return;
+		}
+
+		if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+			setAttachError("File type not allowed. Use PDF, Word documents, images or plain text.");
+			e.target.value = "";
+			return;
+		}
+
+		setSelectedFile(file);
+		e.target.value = "";
+	};
+
+	const handleOpenAttachment = async (path: string) => {
+		const { data } = await supabase.storage
+			.from("message-attachments")
+			.createSignedUrl(path, 3600);
+		if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+	};
+
+	const formatFileSize = (bytes: number) => {
+		if (bytes < 1024) return `${bytes} B`;
+		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 	};
 
 	const formatTime = (date: string) => {
@@ -338,7 +429,39 @@ export default function MessagesPage() {
 												: "bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-100 dark:border-gray-700 rounded-bl-sm"
 										}`}
 									>
-										{msg.content}
+										{msg.content && <p>{msg.content}</p>}
+										{msg.attachment_url && (
+											<button
+												type="button"
+												onClick={() => handleOpenAttachment(msg.attachment_url)}
+												className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left w-full ${
+													msg.content ? "mt-2" : ""
+												} ${
+													isMe
+														? "bg-white/15 hover:bg-white/25"
+														: "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+												}`}
+											>
+												<FileText className="w-4 h-4 shrink-0" />
+												<span className="min-w-0 flex-1">
+													<span className="block truncate text-xs font-medium">
+														{msg.attachment_name || "Attachment"}
+													</span>
+													<span
+														className={`block text-[11px] ${
+															isMe
+																? "text-white/70"
+																: "text-gray-500 dark:text-gray-400"
+														}`}
+													>
+														{msg.attachment_size != null
+															? formatFileSize(msg.attachment_size)
+															: ""}{" "}
+														· Download
+													</span>
+												</span>
+											</button>
+										)}
 									</div>
 									<p className="text-xs text-gray-400 dark:text-gray-500 mx-1">
 										{formatTime(msg.created_at)}
@@ -357,35 +480,77 @@ export default function MessagesPage() {
 						Payment has been released. This conversation is now closed.
 					</div>
 				) : (
-					<div className="flex items-end gap-3">
-						<textarea
-							value={newMessage}
-							onChange={(e) => setNewMessage(e.target.value)}
-							onKeyDown={handleKeyDown}
-							placeholder="Type a message... (Enter to send)"
-							rows={1}
-							className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 resize-none text-sm"
-						/>
-						<button
-							onClick={handleSend}
-							disabled={!newMessage.trim() || sending}
-							aria-label="Send message"
-							className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white p-3 rounded-xl transition-colors shrink-0"
-						>
-							<svg
-								className="w-5 h-5"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
+					<div>
+						{selectedFile && (
+							<div className="flex items-center gap-2 mb-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl">
+								<FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
+								<span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate flex-1">
+									{selectedFile.name}
+								</span>
+								<span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
+									{formatFileSize(selectedFile.size)}
+								</span>
+								<button
+									type="button"
+									onClick={() => {
+										setSelectedFile(null);
+										setAttachError("");
+									}}
+									className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shrink-0"
+									aria-label="Remove attachment"
+								>
+									<X className="w-4 h-4" />
+								</button>
+							</div>
+						)}
+						{attachError && (
+							<p className="text-sm text-red-500 mb-2">{attachError}</p>
+						)}
+						<div className="flex items-end gap-3">
+							<input
+								ref={fileInputRef}
+								type="file"
+								className="hidden"
+								onChange={handleFileSelected}
+								accept={ALLOWED_ATTACHMENT_TYPES.join(",")}
+							/>
+							<button
+								type="button"
+								onClick={() => fileInputRef.current?.click()}
+								aria-label="Attach file"
+								className="text-gray-400 hover:text-green-600 dark:text-gray-500 dark:hover:text-green-400 p-2 transition-colors shrink-0"
 							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-								/>
-							</svg>
-						</button>
+								<Paperclip className="w-5 h-5" />
+							</button>
+							<textarea
+								value={newMessage}
+								onChange={(e) => setNewMessage(e.target.value)}
+								onKeyDown={handleKeyDown}
+								placeholder="Type a message... (Enter to send)"
+								rows={1}
+								className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 dark:placeholder-gray-400 resize-none text-sm"
+							/>
+							<button
+								onClick={handleSend}
+								disabled={(!newMessage.trim() && !selectedFile) || sending}
+								aria-label="Send message"
+								className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white p-3 rounded-xl transition-colors shrink-0"
+							>
+								<svg
+									className="w-5 h-5"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+									/>
+								</svg>
+							</button>
+						</div>
 					</div>
 				)}
 			</div>
