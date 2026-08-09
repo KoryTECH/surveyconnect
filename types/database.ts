@@ -106,8 +106,6 @@ export interface Job {
 	pricing_unit: string | null;
 	mobilization_fee: number;
 	accuracy_class: string | null;
-	views_count: number;
-	view_count: number;
 	applications_count: number;
 	created_at: string;
 	updated_at: string;
@@ -211,7 +209,6 @@ export interface ClientProfile {
 	industry: string | null;
 	total_jobs_posted: number;
 	total_spent: number;
-	payment_method_on_file: boolean;
 	onboarding_dismissed_at: string | null;
 	created_at: string;
 	updated_at: string;
